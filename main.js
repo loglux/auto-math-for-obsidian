@@ -11,16 +11,32 @@ const DEFAULT_RULES = [
     "expand": "\\left|{}\\right|"
   },
   {
-    "trigger": "\\bar",
-    "expand": "\\bar{}"
+    "trigger": "\\norm",
+    "expand": "\\left\\|{}\\right\\|"
   },
   {
     "trigger": "\\frac",
     "expand": "\\frac{}{}"
   },
   {
-    "trigger": "\\hat",
-    "expand": "\\hat{}"
+    "trigger": "\\text",
+    "expand": "\\text{}"
+  },
+  {
+    "trigger": "\\sqrt",
+    "expand": "\\sqrt{}"
+  },
+  {
+    "trigger": "\\root",
+    "expand": "\\sqrt[]{}"
+  },
+  {
+    "trigger": "\\pow",
+    "expand": "{}^{}"
+  },
+  {
+    "trigger": "\\sum",
+    "expand": "\\sum_{}^{}"
   },
   {
     "trigger": "\\int",
@@ -31,41 +47,61 @@ const DEFAULT_RULES = [
     "expand": "\\lim_{}"
   },
   {
-    "trigger": "\\norm",
-    "expand": "\\left\\|{}\\right\\|"
+    "trigger": "\\vec",
+    "expand": "\\vec{}"
+  },
+  {
+    "trigger": "\\hat",
+    "expand": "\\hat{}"
+  },
+  {
+    "trigger": "\\bar",
+    "expand": "\\bar{}"
   },
   {
     "trigger": "\\overline",
     "expand": "\\overline{}"
   },
   {
-    "trigger": "\\pow",
-    "expand": "{}^{}"
-  },
-  {
-    "trigger": "\\root",
-    "expand": "\\sqrt[]{}"
-  },
-  {
-    "trigger": "\\sqrt",
-    "expand": "\\sqrt{}"
-  },
-  {
-    "trigger": "\\sum",
-    "expand": "\\sum_{}^{}"
-  },
-  {
-    "trigger": "\\text",
-    "expand": "\\text{}"
-  },
-  {
     "trigger": "\\underline",
     "expand": "\\underline{}"
   },
   {
-    "trigger": "\\vec",
-    "expand": "\\vec{}"
-  }
+    "trigger": "\\log",
+    "expand": "\\log_{}"
+  },
+  {
+    "trigger": "\\ln",
+    "expand": "\\ln{}"
+  },
+  {
+    "trigger": "\\sin",
+    "expand": "\\sin{}"
+  },
+  {
+    "trigger": "\\cos",
+    "expand": "\\cos{}"
+  },
+  {
+    "trigger": "\\tan",
+    "expand": "\\tan{}"
+  },
+  {
+    "trigger": "\\cot",
+    "expand": "\\cot{}"
+  },
+  {
+    "trigger": "\\sec",
+    "expand": "\\sec{}"
+  },
+  {
+    "trigger": "\\csc",
+    "expand": "\\csc{}"
+  },
+{
+    "trigger": "^^",
+    "expand": "^{}"
+}
 ];
 
 const DEFAULT_SETTINGS = {
@@ -78,7 +114,7 @@ const DEFAULT_SETTINGS = {
 module.exports = class AutoMathPlugin extends Plugin {
   async onload() {
     this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
-    console.log("[Auto Math] loaded v0.4.1");
+    console.log("[Auto Math] loaded v0.2.0");
 
     const exists = await this._rulesFileExists(this.settings.rulesPath);
     new Notice(exists ? `Auto Math: external rules found → ${this.settings.rulesPath}`
@@ -144,7 +180,7 @@ module.exports = class AutoMathPlugin extends Plugin {
   async _ensureRulesFile() {
     const p = this.settings.rulesPath;
     if (!(await this._rulesFileExists(p))) {
-      const def = JSON.stringify(DEFAULT_RULES, null, 2) + "\n";
+      const def = JSON.stringify(DEFAULT_RULES, null, 2) + "\\n";
       const ok = await this._writeVaultFile(p, def);
       new Notice(ok ? `Created rules file at ${p}` : "Failed to create rules file (see console)");
     }
@@ -180,7 +216,7 @@ module.exports = class AutoMathPlugin extends Plugin {
         const arr = JSON.parse(trimmed);
         return this._sanitizeRules(arr);
       }
-      const lines = trimmed.split(/\n+/).map(l => l.trim()).filter(Boolean);
+      const lines = trimmed.split(/\\n+/).map(l => l.trim()).filter(Boolean);
       const arr = [];
       for (const l of lines) { try { arr.push(JSON.parse(l)); } catch { /* ignore */ } }
       return this._sanitizeRules(arr);
@@ -309,15 +345,21 @@ class AutoMathSettingsTab extends require("obsidian").PluginSettingTab {
     help.setAttr("style", "margin: 6px 0; opacity: .8;");
 
     const editorEl = containerEl.createDiv();
-    const renderEditor = async () => {
+    let work = this.plugin._workRules || null;
+
+    const renderEditor = async (opts = { reload: false }) => {
       editorEl.empty();
-      const loadedOk = await this.plugin._loadExternalRules(true);
-      const rules = this.plugin._getRules().map(r => ({...r}));
+
+      if (!work || opts.reload) {
+        await this.plugin._loadExternalRules(true);
+        work = this.plugin._getRules().map(r => ({ ...r }));
+        this.plugin._workRules = work;
+      }
 
       const list = editorEl.createDiv();
       list.addClass("am-rules-list");
 
-      rules.forEach((rule, idx) => {
+      work.forEach((rule, idx) => {
         const row = list.createDiv({ cls: "am-rule-row" });
         new Setting(row).setName("Trigger").addText(t => {
           t.setValue(rule.trigger).onChange(v => rule.trigger = v);
@@ -326,7 +368,7 @@ class AutoMathSettingsTab extends require("obsidian").PluginSettingTab {
           t.setValue(rule.expand).onChange(v => rule.expand = v);
         });
         new Setting(row).addButton(b => b.setButtonText("Delete").onClick(() => {
-          rules.splice(idx, 1);
+          work.splice(idx, 1);
           renderEditor();
         }));
         row.createEl("hr");
@@ -336,7 +378,7 @@ class AutoMathSettingsTab extends require("obsidian").PluginSettingTab {
       new Setting(addWrap)
         .setName("Add new rule")
         .addButton(b => b.setButtonText("+ Add").onClick(() => {
-          rules.push({ trigger: "\\\\new", expand: "\\\\new{}" });
+          work.push({ trigger: "\\\\new", expand: "\\\\new{}" });
           renderEditor();
         }));
 
@@ -345,30 +387,28 @@ class AutoMathSettingsTab extends require("obsidian").PluginSettingTab {
         .setName("Save rules to file")
         .setDesc(`Writes JSON to ${this.plugin.settings.rulesPath}`)
         .addButton(b => b.setButtonText("Save").onClick(async () => {
-          const cleaned = rules
+          const cleaned = work
             .filter(r => r && typeof r.trigger === "string" && typeof r.expand === "string" && r.trigger.trim().length)
             .sort((a, b) => a.trigger.localeCompare(b.trigger));
           const text = JSON.stringify(cleaned, null, 2) + "\n";
           const ok = await this.plugin._writeVaultFile(this.plugin.settings.rulesPath, text);
           if (ok) {
+            this.plugin._workRules = null;
             await this.plugin._loadExternalRules(true);
             new Notice(`Saved ${cleaned.length} rules`);
+            renderEditor({ reload: true });
           } else {
             new Notice("Failed to save rules (see console)");
           }
         }))
-        .addButton(b => b.setButtonText("Reset to default math pack").onClick(async () => {
-          const text = JSON.stringify(DEFAULT_RULES, null, 2) + "\n";
-          const ok = await this.plugin._writeVaultFile(this.plugin.settings.rulesPath, text);
-          if (ok) {
-            await this.plugin._loadExternalRules(true);
-            renderEditor();
-            new Notice("Restored default math pack");
-          } else {
-            new Notice("Failed to reset (see console)");
-          }
+        .addButton(b => b.setButtonText("Discard").onClick(() => {
+          this.plugin._workRules = null;
+          work = null;
+          new Notice("Changes discarded");
+          renderEditor({ reload: true });
         }));
     };
+
     renderEditor();
   }
 }

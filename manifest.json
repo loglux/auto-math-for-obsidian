@@ -1,7 +1,7 @@
 {
   "id": "auto-math",
   "name": "Auto Math",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "minAppVersion": "1.5.0",
   "description": "Auto-expands LaTeX snippets. External rules with live reload, Custom Rules Editor, and default math pack.",
   "author": "Vladislav Sorokin",

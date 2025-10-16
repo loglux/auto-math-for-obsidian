@@ -30,6 +30,7 @@ It’s like a mini _LaTeX auto-completion engine_ — lightweight, fast, and ent
 
 Auto Math comes preloaded with the following triggers:
 
+
 |Trigger|Expands to|
 |---|---|
 |`\frac`|`\frac{}{}`|
@@ -47,6 +48,15 @@ Auto Math comes preloaded with the following triggers:
 |`\bar`|`\bar{}`|
 |`\overline`|`\overline{}`|
 |`\underline`|`\underline{}`|
+|`\log`|`\log_{}`|
+|`\ln`|`\ln{}`|
+|`\sin`|`\sin{}`|
+|`\cos`|`\cos{}`|
+|`\tan`|`\tan{}`|
+|`\cot`|`\cot{}`|
+|`\sec`|`\sec{}`|
+|`\csc`|`\csc{}`|
+|`^^`|`^{}`|
 
 ---
 
