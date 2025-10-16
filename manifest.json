@@ -1,0 +1,11 @@
+{
+  "id": "auto-math",
+  "name": "Auto Math",
+  "version": "0.4.1",
+  "minAppVersion": "1.5.0",
+  "description": "Auto-expands LaTeX snippets. External rules with live reload, Custom Rules Editor, and default math pack.",
+  "author": "Vladislav Sorokin",
+  "authorUrl": "https://www.github.com/loglux",
+  "isDesktopOnly": false,
+  "main": "main.js"
+}
