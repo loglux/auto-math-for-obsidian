@@ -54,7 +54,7 @@ Auto Math comes preloaded with the following triggers:
 
 #### Manual
 
-1. Download the latest release from the [Releases](https://github.com/yourname/auto-math-for-obsidian/releases) page.
+1. Download the latest release from the [Releases](https://github.com/loglux/auto-math-for-obsidian/releases/) page.
     
 2. Extract the folder `auto-math` into your vault under:
     
