@@ -40,7 +40,7 @@ Auto Math comes preloaded with the following triggers:
 |`\sum`|`\sum_{}^{}`|
 |`\int`|`\int_{}^{}`|
 |`\lim`|`\lim_{}`|
-|`\abs`|`\left|
+|`\abs`|`\left|{}\right|'|
 |`\norm`|`\left\|{}\right\|`|
 |`\vec`|`\vec{}`|
 |`\hat`|`\hat{}`|
