@@ -6,6 +6,5 @@
   "description": "Auto-expands LaTeX snippets. External rules with live reload, Custom Rules Editor, and default math pack.",
   "author": "Vladislav Sorokin",
   "authorUrl": "https://www.github.com/loglux",
-  "isDesktopOnly": false,
-  "main": "main.js"
+  "isDesktopOnly": false
 }
