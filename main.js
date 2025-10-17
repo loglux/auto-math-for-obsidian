@@ -98,10 +98,15 @@ const DEFAULT_RULES = [
     "trigger": "\\csc",
     "expand": "\\csc{}"
   },
-{
-    "trigger": "^^",
-    "expand": "^{}"
-}
+    {
+        "trigger": "^^",
+        "expand": "^{}"
+    },
+    {
+        "trigger": "__",
+        "expand": "_{}"
+    }
+
 ];
 
 const DEFAULT_SETTINGS = {
@@ -115,7 +120,7 @@ const DEFAULT_SETTINGS = {
 module.exports = class AutoMathPlugin extends Plugin {
   async onload() {
     this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
-    console.log("[Auto Math] loaded v0.1.2");
+    console.log("[Auto Math] loaded v0.1.3");
 
     const exists = await this._rulesFileExists(this.settings.rulesPath);
     new Notice(exists ? `Auto Math: external rules found → ${this.settings.rulesPath}`

@@ -57,6 +57,8 @@ Auto Math comes preloaded with the following triggers:
 |`\sec`|`\sec{}`|
 |`\csc`|`\csc{}`|
 |`^^`|`^{}`|
+| `__`         | `_{}`              |
+
 
 ---
 
