@@ -11,7 +11,7 @@ It’s like a mini _LaTeX auto-completion engine_ — lightweight, fast, and ent
 
 - 🔹 **Instant snippet expansion** – type `\frac`, `\sqrt`, `\sum`, etc., and get ready-to-edit templates.
     
-- 🔹 **Custom rule file** – all expansions are stored in `_auto-math.rules.json` (in your vault root).
+- 🔹 **Custom rule file** – all expansions are stored in `.obsidian/plugins/auto-math/rules.json` (user-editable).
     
 - 🔹 **Live reload** – changes in the rules file are applied immediately, no restart required.
     
@@ -85,7 +85,7 @@ Open **Settings → Auto Math** to customise:
 
 - **Enabled** – toggle Auto Math on/off.
     
-- **Rules file path** – defaults to `_auto-math.rules.json`.
+- **Rules file path** – defaults to `.obsidian/plugins/auto-math/auto-math.rules.json`.
     
 - **Reload / Create / Open** – reload or open your external rules file.
     
@@ -102,7 +102,7 @@ Open **Settings → Auto Math** to customise:
 
 ### 💡 Customisation Example
 
-If you’d like to add your own expansions, open `_auto-math.rules.json` and add entries like:
+If you’d like to add your own expansions, open `auto-math.rules.json` and add entries like:
 
 ```json
 [

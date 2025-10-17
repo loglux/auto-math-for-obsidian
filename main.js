@@ -106,15 +106,16 @@ const DEFAULT_RULES = [
 
 const DEFAULT_SETTINGS = {
   enabled: true,
-  rulesPath: "_auto-math.rules.json",
-  debug: true,
+  rulesPath: ".obsidian/plugins/auto-math/rules.json",
+
+    debug: true,
   rulesJson: JSON.stringify(DEFAULT_RULES, null, 2), // fallback
 };
 
 module.exports = class AutoMathPlugin extends Plugin {
   async onload() {
     this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
-    console.log("[Auto Math] loaded v0.2.0");
+    console.log("[Auto Math] loaded v0.1.2");
 
     const exists = await this._rulesFileExists(this.settings.rulesPath);
     new Notice(exists ? `Auto Math: external rules found → ${this.settings.rulesPath}`
@@ -145,7 +146,7 @@ module.exports = class AutoMathPlugin extends Plugin {
     this._registerRulesWatcher();
 
     this.registerEvent(
-      this.app.workspace.on("editor-change", (editor, view) => {
+      this.app.workspace.on("editor-change", (editor) => {
         if (!this.settings.enabled) return;
         if (!editor) return;
         try { this._maybeExpand(editor); } catch (e) { console.error("[Auto Math] expand error", e); }
