@@ -10,19 +10,20 @@ It’s like a mini _LaTeX auto-completion engine_ — lightweight, fast, and ent
 ### ✨ Features
 
 - 🔹 **Instant snippet expansion** – type `\frac`, `\sqrt`, `\sum`, etc., and get ready-to-edit templates.
-    
+
 - 🔹 **Custom rule file** – all expansions are stored in `.obsidian/plugins/auto-math/rules.json` (user-editable).
-    
+
 - 🔹 **Live reload** – changes in the rules file are applied immediately, no restart required.
-    
+
 - 🔹 **Built-in math pack** – includes common LaTeX commands for fractions, roots, sums, limits, etc.
-    
+
 - 🔹 **Custom Rules Editor** – edit triggers and expansions directly inside Obsidian settings.
-    
+
 - 🔹 **Toggle anytime** – quickly enable or disable with the ribbon icon or command palette.
-    
+
 - 🔹 **“Reset to default math pack”** – restore the standard set with one click.
-    
+
+- 🔹 **Smart Integrals** – automatically chooses `\int` or `\int\limits` when expanding the trigger, based on whether the cursor is inside inline (`$…$`) or display (`$$…$$`) math.
 
 ---
 
@@ -57,7 +58,7 @@ Auto Math comes preloaded with the following triggers:
 |`\sec`|`\sec{}`|
 |`\csc`|`\csc{}`|
 |`^^`|`^{}`|
-| `__`         | `_{}`              |
+|`__`|`_{}`|
 
 
 ---
@@ -67,17 +68,17 @@ Auto Math comes preloaded with the following triggers:
 #### Manual
 
 1. Download the latest release from the [Releases](https://github.com/loglux/auto-math-for-obsidian/releases/) page.
-    
+
 2. Extract the folder `auto-math` into your vault under:
-    
+
     ```
     .obsidian/plugins/auto-math/
     ```
-    
+
 3. Enable **Auto Math** in _Settings → Community Plugins → Installed plugins_.
-    
+
 4. That’s it — start typing `\frac`, `\sqrt`, `\sum` and watch them expand automatically!
-    
+
 
 ---
 
@@ -86,19 +87,19 @@ Auto Math comes preloaded with the following triggers:
 Open **Settings → Auto Math** to customise:
 
 - **Enabled** – toggle Auto Math on/off.
-    
+
 - **Rules file path** – defaults to `.obsidian/plugins/auto-math/auto-math.rules.json`.
-    
+
 - **Reload / Create / Open** – reload or open your external rules file.
-    
+
 - **Debug logs** – show extra information in the developer console.
-    
+
 - **Custom Rules Editor** – view, add, delete, and edit your rules interactively.
-    
+
 - **Save rules to file** – writes changes to the JSON file immediately.
-    
+
 - **Reset to default math pack** – restores the built-in default rule set.
-    
+
 
 ---
 
@@ -121,11 +122,11 @@ Then click **Reload rules now** — your new triggers will be active instantly.
 ### 🪶 Notes
 
 - The plugin works fully offline and doesn’t require any external dependencies.
-    
+
 - Uses plain JSON and Obsidian’s own vault API.
-    
+
 - Safe to edit while running — changes are detected automatically.
-    
+
 
 ---
 
