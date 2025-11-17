@@ -32,6 +32,16 @@ const DEFAULT_RULES = [
     { trigger: "\\csc",       expand: "\\csc{}" },
     { trigger: "^^",          expand: "^{}" },
     { trigger: "__",          expand: "_{}" },
+    // LaTeX environments (multiline)
+    { trigger: "\\align",     expand: "\\begin{align}\n|\n\\end{align}" },
+    { trigger: "\\aligned",   expand: "\\begin{aligned}\n|\n\\end{aligned}" },
+    { trigger: "\\gather",    expand: "\\begin{gather}\n|\n\\end{gather}" },
+    { trigger: "\\cases",     expand: "\\begin{cases}\n|\n\\end{cases}" },
+    { trigger: "\\array",     expand: "\\begin{array}{}\n|\n\\end{array}" },
+    { trigger: "\\matrix",    expand: "\\begin{matrix}\n|\n\\end{matrix}" },
+    { trigger: "\\pmatrix",   expand: "\\begin{pmatrix}\n|\n\\end{pmatrix}" },
+    { trigger: "\\bmatrix",   expand: "\\begin{bmatrix}\n|\n\\end{bmatrix}" },
+    { trigger: "\\split",     expand: "\\begin{split}\n|\n\\end{split}" },
 ];
 
 /*
@@ -411,25 +421,11 @@ module.exports = class AutoMathPlugin extends Plugin {
                 }
             }
 
-            editor.setLine(cursor.line, before + expanded + after);
-
-            // Place cursor inside the first {} if present
-            const idxBraces = expanded.indexOf("{}");
-            if (idxBraces >= 0) {
-                const pos = before.length + expanded.indexOf("{") + 1;
-                editor.setCursor({ line: cursor.line, ch: pos });
+            // Handle multiline expansions (containing \n)
+            if (expanded.includes('\n')) {
+                this._expandMultiline(editor, cursor, before, after, expanded);
             } else {
-                const pipe = expanded.indexOf("|");
-                if (pipe >= 0) {
-                    editor.setLine(cursor.line, before + expanded.replace("|", "") + after);
-                    const pos = before.length + pipe;
-                    editor.setCursor({ line: cursor.line, ch: pos });
-                } else {
-                    editor.setCursor({
-                        line: cursor.line,
-                        ch: before.length + expanded.length,
-                    });
-                }
+                this._expandSingleLine(editor, cursor, before, after, expanded);
             }
 
             if (this.settings.debug) {
@@ -437,6 +433,97 @@ module.exports = class AutoMathPlugin extends Plugin {
             }
 
             return;
+        }
+    }
+
+    /**
+     * Expand a single-line template
+     */
+    _expandSingleLine(editor, cursor, before, after, expanded) {
+        editor.setLine(cursor.line, before + expanded + after);
+
+        // Place cursor inside the first {} if present
+        const idxBraces = expanded.indexOf("{}");
+        if (idxBraces >= 0) {
+            const pos = before.length + expanded.indexOf("{") + 1;
+            editor.setCursor({ line: cursor.line, ch: pos });
+        } else {
+            // Fallback: support '|' marker as cursor position helper
+            const pipe = expanded.indexOf("|");
+            if (pipe >= 0) {
+                editor.setLine(cursor.line, before + expanded.replace("|", "") + after);
+                const pos = before.length + pipe;
+                editor.setCursor({ line: cursor.line, ch: pos });
+            } else {
+                editor.setCursor({
+                    line: cursor.line,
+                    ch: before.length + expanded.length,
+                });
+            }
+        }
+    }
+
+    /**
+     * Expand a multiline template (containing \n)
+     */
+    _expandMultiline(editor, cursor, before, after, expanded) {
+        const lines = expanded.split('\n');
+        const cursorLine = cursor.line;
+
+        // Find cursor marker (| or first {})
+        let cursorLineOffset = 0;
+        let cursorChOffset = 0;
+        let foundCursor = false;
+
+        for (let i = 0; i < lines.length; i++) {
+            const line = lines[i];
+
+            // Check for | marker
+            const pipeIdx = line.indexOf('|');
+            if (pipeIdx >= 0 && !foundCursor) {
+                cursorLineOffset = i;
+                cursorChOffset = pipeIdx;
+                foundCursor = true;
+                lines[i] = line.replace('|', '');
+            }
+
+            // Check for {} marker if no | found yet
+            if (!foundCursor) {
+                const braceIdx = line.indexOf('{}');
+                if (braceIdx >= 0) {
+                    cursorLineOffset = i;
+                    cursorChOffset = braceIdx + 1;
+                    foundCursor = true;
+                }
+            }
+        }
+
+        // Replace current line with first line of expansion
+        editor.setLine(cursorLine, before + lines[0] + (lines.length === 1 ? after : ''));
+
+        // Insert remaining lines
+        if (lines.length > 1) {
+            for (let i = 1; i < lines.length; i++) {
+                const isLastLine = i === lines.length - 1;
+                const content = isLastLine ? lines[i] + after : lines[i];
+                editor.replaceRange(
+                    '\n' + content,
+                    { line: cursorLine + i - 1, ch: Infinity }
+                );
+            }
+        }
+
+        // Position cursor
+        if (foundCursor) {
+            const finalLine = cursorLine + cursorLineOffset;
+            const finalCh = (cursorLineOffset === 0 ? before.length : 0) + cursorChOffset;
+            editor.setCursor({ line: finalLine, ch: finalCh });
+        } else {
+            // Default: end of last line
+            editor.setCursor({
+                line: cursorLine + lines.length - 1,
+                ch: Infinity,
+            });
         }
     }
 

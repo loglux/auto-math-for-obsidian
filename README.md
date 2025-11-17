@@ -121,6 +121,62 @@ The plugin automatically scans neighbouring lines (up to 50 by default) to detec
 
 ---
 
+## LaTeX Environments
+
+Auto Math includes snippets for common LaTeX environments. These automatically expand into multiline blocks with proper formatting.
+
+### Available Environments
+
+| Trigger | Expands to | Use case |
+|---------|------------|----------|
+| `\align` | `\begin{align}...\end{align}` | Aligned equations (with numbering) |
+| `\aligned` | `\begin{aligned}...\end{aligned}` | Aligned equations (no numbering) |
+| `\gather` | `\begin{gather}...\end{gather}` | Centred equations |
+| `\cases` | `\begin{cases}...\end{cases}` | Piecewise functions |
+| `\array` | `\begin{array}{}...\end{array}` | Custom arrays |
+| `\matrix` | `\begin{matrix}...\end{matrix}` | Matrix (no brackets) |
+| `\pmatrix` | `\begin{pmatrix}...\end{pmatrix}` | Matrix with ( ) |
+| `\bmatrix` | `\begin{bmatrix}...\end{bmatrix}` | Matrix with [ ] |
+| `\split` | `\begin{split}...\end{split}` | Split equations |
+
+### Example Usage
+
+**Input:**
+```markdown
+$$
+\align
+$$
+```
+
+**Expands to:**
+```markdown
+$$
+\begin{align}
+| ← cursor here
+\end{align}
+$$
+```
+
+Then you can write your equations with `\\` for line breaks:
+```markdown
+$$
+\begin{align}
+x + y &= 5 \\
+x &= 5 - y
+\end{align}
+$$
+```
+
+**Result:**
+$$
+\begin{align}
+x + y &= 5 \\
+x &= 5 - y
+\end{align}
+$$
+
+---
+
 ### 💡 Customisation Example
 
 If you’d like to add your own expansions, open `auto-math.rules.json` and add entries like:
