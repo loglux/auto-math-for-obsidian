@@ -14,7 +14,7 @@ const DEFAULT_RULES = [
     { trigger: "\\sqrt",      expand: "\\sqrt{}" },
     { trigger: "\\root",      expand: "\\sqrt[]{}" },
     { trigger: "\\pow",       expand: "{}^{}" },
-    { trigger: "\\sum",       expand: "\\sum_{}^{}" },
+    { trigger: "\\sum",       expand: "\\sum_{}^{}"},
     { trigger: "\\int",       expand: "\\int_{}^{}" },
     { trigger: "\\lim",       expand: "\\lim_{}" },
     { trigger: "\\vec",       expand: "\\vec{}" },
@@ -36,11 +36,6 @@ const DEFAULT_RULES = [
 
 /*
  * Smart limit operators
- * These operators switch between inline and display variants.
- * inline  → compact form
- * display → operator with \limits for top/bottom indices
- *
- * To extend this behaviour (e.g. to \prod), simply add another entry here.
  */
 const SMART_LIMIT_OPERATORS = {
     "\\int": {
@@ -58,7 +53,9 @@ const DEFAULT_SETTINGS = {
     enabled: true,
     rulesPath: ".obsidian/plugins/auto-math/rules.json",
     debug: true,
-    smartLimits: true, // controls context-aware behaviour for ∫ and ∑
+    smartLimits: true,
+    multilineMathMode: true,
+    maxScanLines: 50,
     rulesJson: JSON.stringify(DEFAULT_RULES, null, 2),
 };
 
@@ -68,25 +65,21 @@ module.exports = class AutoMathPlugin extends Plugin {
         const version = this.manifest && this.manifest.version ? this.manifest.version : "unknown";
         console.log("[Auto Math] loaded v" + version);
 
-        // Load external rules or use fallback
         const exists = await this._rulesFileExists(this.settings.rulesPath);
         new Notice(
             exists
-                ? `Auto Math: external rules found → ${this.settings.rulesPath}`
-                : `Auto Math: external rules NOT found → using default pack`
+                ? `Auto Math: external rules found`
+                : `Auto Math: external rules NOT found`
         );
 
         await this._loadExternalRules(true);
         new Notice(`Auto Math: ${this._getRules().length} active rules`);
 
-        // Status bar indicator
         this.statusEl = this.addStatusBarItem();
         this._renderStatus();
 
-        // Ribbon toggle
         this.addRibbonIcon("divide", "Toggle Auto Math", () => this._toggle());
 
-        // Commands
         this.addCommand({
             id: "auto-math-toggle",
             name: "Toggle Auto Math",
@@ -124,10 +117,8 @@ module.exports = class AutoMathPlugin extends Plugin {
             },
         });
 
-        // Watch for changes in the external rules file
         this._registerRulesWatcher();
 
-        // Core typing handler
         this.registerEvent(
             this.app.workspace.on("editor-change", (editor) => {
                 if (!this.settings.enabled) return;
@@ -140,11 +131,9 @@ module.exports = class AutoMathPlugin extends Plugin {
             })
         );
 
-        // Settings UI
         this.addSettingTab(new AutoMathSettingsTab(this.app, this));
     }
 
-    // Toggle plugin on/off
     _toggle() {
         this.settings.enabled = !this.settings.enabled;
         this.saveSettings();
@@ -156,8 +145,6 @@ module.exports = class AutoMathPlugin extends Plugin {
         if (!this.statusEl) return;
         this.statusEl.setText(this.settings.enabled ? "Auto Math: ON" : "Auto Math: OFF");
     }
-
-    // --- Vault helpers ---
 
     async _rulesFileExists(path) {
         try {
@@ -209,8 +196,6 @@ module.exports = class AutoMathPlugin extends Plugin {
         }
     }
 
-    // --- Rules loading and parsing ---
-
     async _loadExternalRules(showErrors) {
         const p = this.settings.rulesPath;
         const raw = await this._readVaultFile(p);
@@ -238,13 +223,11 @@ module.exports = class AutoMathPlugin extends Plugin {
         try {
             const trimmed = text.trim();
 
-            // Case 1: pure JSON array
             if (trimmed.startsWith("[")) {
                 const arr = JSON.parse(trimmed);
                 return this._sanitizeRules(arr);
             }
 
-            // Case 2: one JSON object per line
             const lines = trimmed
                 .split(/\n+/)
                 .map((l) => l.trim())
@@ -255,7 +238,6 @@ module.exports = class AutoMathPlugin extends Plugin {
                 try {
                     arr.push(JSON.parse(l));
                 } catch {
-                    // ignore invalid lines
                 }
             }
 
@@ -303,17 +285,11 @@ module.exports = class AutoMathPlugin extends Plugin {
         return this._rules || [];
     }
 
-    // --- Math context helper (single line only) ---
-
-    /**
-     * Detect whether the cursor is inside $...$ or $$...$$ on the current line.
-     * Multi-line blocks are treated as "none" to avoid aggressive rewriting.
-     */
     _getMathContext(editor, pos) {
-        const lineText = editor.getLine(pos.line) ?? "";
+        const currentLine = pos.line;
+        const lineText = editor.getLine(currentLine) ?? "";
         const len = lineText.length;
 
-        // $$ ... $$ (display) on a single line
         const display = [];
         for (let i = 0; i < len - 1; i++) {
             if (lineText[i] === "$" && lineText[i + 1] === "$") {
@@ -329,7 +305,6 @@ module.exports = class AutoMathPlugin extends Plugin {
             }
         }
 
-        // $ ... $ (inline) on a single line, ignoring $$ which are already handled
         const singles = [];
         for (let i = 0; i < len; i++) {
             if (lineText[i] === "$") {
@@ -348,22 +323,42 @@ module.exports = class AutoMathPlugin extends Plugin {
             }
         }
 
+        if (this.settings.multilineMathMode) {
+            const maxScan = this.settings.maxScanLines || 50;
+
+            let displayStart = null;
+            for (let i = currentLine - 1; i >= Math.max(0, currentLine - maxScan); i--) {
+                const line = editor.getLine(i).trim();
+                if (line === "$$") {
+                    displayStart = i;
+                    break;
+                }
+            }
+
+            if (displayStart !== null) {
+                for (let i = currentLine + 1; i < Math.min(editor.lineCount(), currentLine + maxScan); i++) {
+                    const line = editor.getLine(i).trim();
+                    if (line === "$$") {
+                        if (this.settings.debug) {
+                            console.log(`[Auto Math] multiline display mode detected: lines ${displayStart}-${i}`);
+                        }
+                        return { type: "display" };
+                    }
+                }
+            }
+        }
+
         return { type: "none" };
     }
-
-    // --- Expansion core (OPTIMISED) ---
 
     _maybeExpand(editor) {
         const cursor = editor.getCursor();
         const lineText = editor.getLine(cursor.line);
 
-        // OPTIMISATION 1: Early exit if cursor at start of line
         if (cursor.ch === 0) return;
 
         const lastChar = lineText[cursor.ch - 1];
 
-        // OPTIMISATION 2: Quick check - last character must be part of a trigger
-        // Valid trigger endings: letters, backslash, ^, _, }
         if (!/[a-zA-Z\\^_}]/.test(lastChar)) return;
 
         const uptoRaw = lineText.slice(0, cursor.ch);
@@ -372,11 +367,9 @@ module.exports = class AutoMathPlugin extends Plugin {
         const rules = this._getRules();
         if (!rules.length) return;
 
-        // OPTIMISATION 3: Only check rules that could possibly match
         for (const rule of rules) {
             const trig = normalizeText(rule.trigger);
 
-            // Skip if trigger is longer than what we've typed
             if (trig.length > upto.length) continue;
 
             if (!upto.endsWith(trig)) continue;
@@ -388,7 +381,6 @@ module.exports = class AutoMathPlugin extends Plugin {
 
             let expanded = rule.expand;
 
-            // Smart limits: choose template for \int / \sum based on context
             if (this.settings.smartLimits) {
                 const smart = SMART_LIMIT_OPERATORS[trig];
                 if (smart) {
@@ -396,7 +388,6 @@ module.exports = class AutoMathPlugin extends Plugin {
                     if (ctx.type === "display") {
                         expanded = smart.display;
                     } else {
-                        // inline or outside maths
                         expanded = smart.inline;
                     }
                 }
@@ -404,13 +395,11 @@ module.exports = class AutoMathPlugin extends Plugin {
 
             editor.setLine(cursor.line, before + expanded + after);
 
-            // Place cursor inside the first {} if present
             const idxBraces = expanded.indexOf("{}");
             if (idxBraces >= 0) {
                 const pos = before.length + expanded.indexOf("{") + 1;
                 editor.setCursor({ line: cursor.line, ch: pos });
             } else {
-                // Fallback: support '|' marker as cursor position helper
                 const pipe = expanded.indexOf("|");
                 if (pipe >= 0) {
                     editor.setLine(cursor.line, before + expanded.replace("|", "") + after);
@@ -492,7 +481,7 @@ class AutoMathSettingsTab extends require("obsidian").PluginSettingTab {
 
         new Setting(containerEl)
             .setName("Create / open rules file")
-            .setDesc("Create a external rules file if missing and open it in a new tab")
+            .setDesc("Create external rules file if missing and open it in a new tab")
             .addButton((b) =>
                 b.setButtonText("Create / open").onClick(async () => {
                     await this.plugin._ensureRulesFile();
@@ -522,6 +511,20 @@ class AutoMathSettingsTab extends require("obsidian").PluginSettingTab {
                     .setValue(this.plugin.settings.smartLimits)
                     .onChange(async (v) => {
                         this.plugin.settings.smartLimits = v;
+                        await this.plugin.saveSettings();
+                    })
+            );
+
+        new Setting(containerEl)
+            .setName("Multiline maths mode")
+            .setDesc(
+                "Enable Smart Limits inside multiline $$...$$ blocks. Scans neighbouring lines to detect display maths context."
+            )
+            .addToggle((t) =>
+                t
+                    .setValue(this.plugin.settings.multilineMathMode)
+                    .onChange(async (v) => {
+                        this.plugin.settings.multilineMathMode = v;
                         await this.plugin.saveSettings();
                     })
             );
