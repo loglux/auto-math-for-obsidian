@@ -1,9 +1,11 @@
 const { Plugin, Notice, Setting } = require("obsidian");
 
+// Remove zero-width characters (they break trigger matching)
 function normalizeText(s) {
-    return (s ?? "").replace(/[\u200B\uFEFF]/g, ""); // strip zero-width characters
+    return (s ?? "").replace(/[\u200B\uFEFF]/g, "");
 }
 
+// Default snippet rules (fallback if external file is missing or invalid)
 const DEFAULT_RULES = [
     { trigger: "\\abs",       expand: "\\left|{}\\right|" },
     { trigger: "\\norm",      expand: "\\left\\|{}\\right\\|" },
@@ -32,19 +34,41 @@ const DEFAULT_RULES = [
     { trigger: "__",          expand: "_{}" },
 ];
 
+/*
+ * Smart limit operators
+ * These operators switch between inline and display variants.
+ * inline  → compact form
+ * display → operator with \limits for top/bottom indices
+ *
+ * To extend this behaviour (e.g. to \prod), simply add another entry here.
+ */
+const SMART_LIMIT_OPERATORS = {
+    "\\int": {
+        inline: "\\int_{}^{}",
+        display: "\\int\\limits_{}^{}",
+    },
+    "\\sum": {
+        inline: "\\sum_{}^{}",
+        display: "\\sum\\limits_{}^{}",
+    },
+};
+
+// Default plugin settings
 const DEFAULT_SETTINGS = {
     enabled: true,
     rulesPath: ".obsidian/plugins/auto-math/rules.json",
     debug: true,
+    smartLimits: true, // controls context-aware behaviour for ∫ and ∑
     rulesJson: JSON.stringify(DEFAULT_RULES, null, 2),
-    smartIntegrals: true, // controls context-aware \int insertion
 };
 
 module.exports = class AutoMathPlugin extends Plugin {
     async onload() {
         this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
-        console.log("[Auto Math] loaded v0.1.4");
+        const version = this.manifest && this.manifest.version ? this.manifest.version : "unknown";
+        console.log("[Auto Math] loaded v" + version);
 
+        // Load external rules or use fallback
         const exists = await this._rulesFileExists(this.settings.rulesPath);
         new Notice(
             exists
@@ -55,11 +79,14 @@ module.exports = class AutoMathPlugin extends Plugin {
         await this._loadExternalRules(true);
         new Notice(`Auto Math: ${this._getRules().length} active rules`);
 
+        // Status bar indicator
         this.statusEl = this.addStatusBarItem();
         this._renderStatus();
 
+        // Ribbon toggle
         this.addRibbonIcon("divide", "Toggle Auto Math", () => this._toggle());
 
+        // Commands
         this.addCommand({
             id: "auto-math-toggle",
             name: "Toggle Auto Math",
@@ -97,8 +124,10 @@ module.exports = class AutoMathPlugin extends Plugin {
             },
         });
 
+        // Watch for changes in the external rules file
         this._registerRulesWatcher();
 
+        // Core typing handler
         this.registerEvent(
             this.app.workspace.on("editor-change", (editor) => {
                 if (!this.settings.enabled) return;
@@ -111,11 +140,11 @@ module.exports = class AutoMathPlugin extends Plugin {
             })
         );
 
+        // Settings UI
         this.addSettingTab(new AutoMathSettingsTab(this.app, this));
     }
 
-    // ---------- Basic plugin helpers ----------
-
+    // Toggle plugin on/off
     _toggle() {
         this.settings.enabled = !this.settings.enabled;
         this.saveSettings();
@@ -127,6 +156,8 @@ module.exports = class AutoMathPlugin extends Plugin {
         if (!this.statusEl) return;
         this.statusEl.setText(this.settings.enabled ? "Auto Math: ON" : "Auto Math: OFF");
     }
+
+    // --- Vault helpers ---
 
     async _rulesFileExists(path) {
         try {
@@ -178,49 +209,56 @@ module.exports = class AutoMathPlugin extends Plugin {
         }
     }
 
+    // --- Rules loading and parsing ---
+
     async _loadExternalRules(showErrors) {
         const p = this.settings.rulesPath;
         const raw = await this._readVaultFile(p);
+
         if (raw && raw.trim()) {
             const parsed = this._parseRulesText(raw, showErrors);
             if (parsed && parsed.length) {
                 this._rules = parsed;
-                if (this.settings.debug)
-                    console.log("[Auto Math] loaded external rules", parsed);
+                if (this.settings.debug) console.log("[Auto Math] loaded external rules", parsed);
                 return true;
             }
-            if (showErrors)
-                console.error("[Auto Math] external rules present but invalid at", p);
+            if (showErrors) console.error("[Auto Math] external rules present but invalid at", p);
         } else {
-            if (showErrors)
-                console.warn("[Auto Math] external rules missing at", p);
+            if (showErrors) console.warn("[Auto Math] external rules missing at", p);
         }
+
         const fallback = this._parseRulesText(this.settings.rulesJson, showErrors);
         this._rules = Array.isArray(fallback) ? fallback : [];
-        if (this.settings.debug)
-            console.log("[Auto Math] loaded fallback rules", this._rules);
+
+        if (this.settings.debug) console.log("[Auto Math] loaded fallback rules", this._rules);
         return !!this._rules.length;
     }
 
     _parseRulesText(text, showErrors) {
         try {
             const trimmed = text.trim();
+
+            // Case 1: pure JSON array
             if (trimmed.startsWith("[")) {
                 const arr = JSON.parse(trimmed);
                 return this._sanitizeRules(arr);
             }
+
+            // Case 2: one JSON object per line
             const lines = trimmed
                 .split(/\n+/)
                 .map((l) => l.trim())
                 .filter(Boolean);
+
             const arr = [];
             for (const l of lines) {
                 try {
                     arr.push(JSON.parse(l));
                 } catch {
-                    // ignore invalid JSON lines
+                    // ignore invalid lines
                 }
             }
+
             return this._sanitizeRules(arr);
         } catch (e) {
             if (showErrors) console.error("[Auto Math] cannot parse rules", e);
@@ -230,6 +268,7 @@ module.exports = class AutoMathPlugin extends Plugin {
 
     _sanitizeRules(arr) {
         if (!Array.isArray(arr)) return [];
+
         return arr
             .filter(
                 (r) =>
@@ -254,6 +293,7 @@ module.exports = class AutoMathPlugin extends Plugin {
                 new Notice(`Auto Math: reloaded (${this._getRules().length})`);
             }
         };
+
         this.registerEvent(this.app.vault.on("modify", onChange));
         this.registerEvent(this.app.vault.on("create", onChange));
         this.registerEvent(this.app.vault.on("delete", onChange));
@@ -263,11 +303,11 @@ module.exports = class AutoMathPlugin extends Plugin {
         return this._rules || [];
     }
 
-    // ---------- Math context helper (single line) ----------
+    // --- Math context helper (single line only) ---
 
     /**
-     * Detects whether the given cursor position is inside $...$ or $$...$$
-     * on the current line only. Multi-line blocks are treated as "none".
+     * Detect whether the cursor is inside $...$ or $$...$$ on the current line.
+     * Multi-line blocks are treated as "none" to avoid aggressive rewriting.
      */
     _getMathContext(editor, pos) {
         const lineText = editor.getLine(pos.line) ?? "";
@@ -289,7 +329,7 @@ module.exports = class AutoMathPlugin extends Plugin {
             }
         }
 
-        // $ ... $ (inline) on a single line, ignoring $$ already handled
+        // $ ... $ (inline) on a single line, ignoring $$ which are already handled
         const singles = [];
         for (let i = 0; i < len; i++) {
             if (lineText[i] === "$") {
@@ -311,7 +351,7 @@ module.exports = class AutoMathPlugin extends Plugin {
         return { type: "none" };
     }
 
-    // ---------- Expansion core ----------
+    // --- Expansion core ---
 
     _maybeExpand(editor) {
         const cursor = editor.getCursor();
@@ -333,14 +373,17 @@ module.exports = class AutoMathPlugin extends Plugin {
 
             let expanded = rule.expand;
 
-            // Smart Integrals: choose template for \int based on context
-            if (this.settings.smartIntegrals && trig === "\\int") {
-                const ctx = this._getMathContext(editor, cursor);
-                if (ctx.type === "display") {
-                    expanded = "\\int\\limits_{}^{}";
-                } else {
-                    // inline or outside math – use plain integral with limits below
-                    expanded = "\\int_{}^{}";
+            // Smart limits: choose template for \int / \sum based on context
+            if (this.settings.smartLimits) {
+                const smart = SMART_LIMIT_OPERATORS[trig];
+                if (smart) {
+                    const ctx = this._getMathContext(editor, cursor);
+                    if (ctx.type === "display") {
+                        expanded = smart.display;
+                    } else {
+                        // inline or outside math
+                        expanded = smart.inline;
+                    }
                 }
             }
 
@@ -355,10 +398,7 @@ module.exports = class AutoMathPlugin extends Plugin {
                 // Fallback: support '|' marker as cursor position helper
                 const pipe = expanded.indexOf("|");
                 if (pipe >= 0) {
-                    editor.setLine(
-                        cursor.line,
-                        before + expanded.replace("|", "") + after
-                    );
+                    editor.setLine(cursor.line, before + expanded.replace("|", "") + after);
                     const pos = before.length + pipe;
                     editor.setCursor({ line: cursor.line, ch: pos });
                 } else {
@@ -436,7 +476,7 @@ class AutoMathSettingsTab extends require("obsidian").PluginSettingTab {
 
         new Setting(containerEl)
             .setName("Create / open rules file")
-            .setDesc("Create a default rules file if missing and open it in a new tab")
+            .setDesc("Create a external rules file if missing and open it in a new tab")
             .addButton((b) =>
                 b.setButtonText("Create / open").onClick(async () => {
                     await this.plugin._ensureRulesFile();
@@ -457,15 +497,15 @@ class AutoMathSettingsTab extends require("obsidian").PluginSettingTab {
             );
 
         new Setting(containerEl)
-            .setName("Smart integrals (display vs inline)")
+            .setName("Smart limits")
             .setDesc(
-                "Automatically choose \\int or \\int\\limits when expanding inside $...$ or $$...$$."
+                "Automatically choose \\int/\\int\\limits and \\sum/\\sum\\limits when expanding inside $...$ or $$...$$."
             )
             .addToggle((t) =>
                 t
-                    .setValue(this.plugin.settings.smartIntegrals)
+                    .setValue(this.plugin.settings.smartLimits)
                     .onChange(async (v) => {
-                        this.plugin.settings.smartIntegrals = v;
+                        this.plugin.settings.smartLimits = v;
                         await this.plugin.saveSettings();
                     })
             );

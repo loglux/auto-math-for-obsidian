@@ -11,6 +11,10 @@ It’s like a mini _LaTeX auto-completion engine_ — lightweight, fast, and ent
 
 - 🔹 **Instant snippet expansion** – type `\frac`, `\sqrt`, `\sum`, etc., and get ready-to-edit templates.
 
+- 🔹 **Smart Limits** – optional context‑aware behaviour for ∫ and ∑:
+  - `$…$` → compact form (`\int_{}^{}`, `\sum_{}^{}`)
+  - `$$…$$` → display form with limits (`\int\limits_{}^{}`, `\sum\limits_{}^{}`)
+
 - 🔹 **Custom rule file** – all expansions are stored in `.obsidian/plugins/auto-math/rules.json` (user-editable).
 
 - 🔹 **Live reload** – changes in the rules file are applied immediately, no restart required.
@@ -20,10 +24,6 @@ It’s like a mini _LaTeX auto-completion engine_ — lightweight, fast, and ent
 - 🔹 **Custom Rules Editor** – edit triggers and expansions directly inside Obsidian settings.
 
 - 🔹 **Toggle anytime** – quickly enable or disable with the ribbon icon or command palette.
-
-- 🔹 **“Reset to default math pack”** – restore the standard set with one click.
-
-- 🔹 **Smart Integrals** – automatically chooses `\int` or `\int\limits` when expanding the trigger, based on whether the cursor is inside inline (`$…$`) or display (`$$…$$`) math.
 
 ---
 
@@ -90,6 +90,8 @@ Open **Settings → Auto Math** to customise:
 
 - **Rules file path** – defaults to `.obsidian/plugins/auto-math/auto-math.rules.json`.
 
+- **Smart Limits** – context‑aware expansions for ∫ and ∑.
+
 - **Reload / Create / Open** – reload or open your external rules file.
 
 - **Debug logs** – show extra information in the developer console.
@@ -99,7 +101,6 @@ Open **Settings → Auto Math** to customise:
 - **Save rules to file** – writes changes to the JSON file immediately.
 
 - **Reset to default math pack** – restores the built-in default rule set.
-
 
 ---
 
