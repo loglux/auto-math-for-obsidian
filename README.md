@@ -3,7 +3,7 @@
 ✍️ **Write equations at the speed of thought — automatic LaTeX snippet expansion for Obsidian.**
 
 Auto Math automatically expands LaTeX-style math snippets while you type in Obsidian.  
-It’s like a mini _LaTeX auto-completion engine_ — lightweight, fast, and entirely local.
+It's like a mini _LaTeX auto-completion engine_ — lightweight, fast, and entirely local.
 
 ---
 
@@ -12,8 +12,10 @@ It’s like a mini _LaTeX auto-completion engine_ — lightweight, fast, and ent
 - 🔹 **Instant snippet expansion** – type `\frac`, `\sqrt`, `\sum`, etc., and get ready-to-edit templates.
 
 - 🔹 **Smart Limits** – optional context‑aware behaviour for ∫ and ∑:
-  - `$…$` → compact form (`\int_{}^{}`, `\sum_{}^{}`)
-  - `$$…$$` → display form with limits (`\int\limits_{}^{}`, `\sum\limits_{}^{}`)
+    - `$…$` → compact form (`\int_{}^{}`, `\sum_{}^{}`)
+    - `$$…$$` → display form with limits (`\int\limits_{}^{}`, `\sum\limits_{}^{}`)
+
+- 🔹 **Multiline templates** – environments like `\align` expand across multiple lines with proper formatting.
 
 - 🔹 **Custom rule file** – all expansions are stored in `.obsidian/plugins/auto-math/rules.json` (user-editable).
 
@@ -31,6 +33,7 @@ It’s like a mini _LaTeX auto-completion engine_ — lightweight, fast, and ent
 
 Auto Math comes preloaded with the following triggers:
 
+#### Basic Commands
 
 |Trigger|Expands to|
 |---|---|
@@ -60,6 +63,19 @@ Auto Math comes preloaded with the following triggers:
 |`^^`|`^{}`|
 |`__`|`_{}`|
 
+#### LaTeX Environments
+
+|Trigger|Expands to|Use case|
+|---|---|---|
+|`\align`|`\begin{align}...\end{align}`|Aligned equations (with numbering)|
+|`\aligned`|`\begin{aligned}...\end{aligned}`|Aligned equations (no numbering)|
+|`\gather`|`\begin{gather}...\end{gather}`|Centred equations|
+|`\cases`|`\begin{cases}...\end{cases}`|Piecewise functions|
+|`\array`|`\begin{array}{}...\end{array}`|Custom arrays|
+|`\matrix`|`\begin{matrix}...\end{matrix}`|Matrix (no brackets)|
+|`\pmatrix`|`\begin{pmatrix}...\end{pmatrix}`|Matrix with ( )|
+|`\bmatrix`|`\begin{bmatrix}...\end{bmatrix}`|Matrix with [ ]|
+|`\split`|`\begin{split}...\end{split}`|Split equations|
 
 ---
 
@@ -77,7 +93,7 @@ Auto Math comes preloaded with the following triggers:
 
 3. Enable **Auto Math** in _Settings → Community Plugins → Installed plugins_.
 
-4. That’s it — start typing `\frac`, `\sqrt`, `\sum` and watch them expand automatically!
+4. That's it — start typing `\frac`, `\sqrt`, `\sum` and watch them expand automatically!
 
 
 ---
@@ -125,20 +141,6 @@ The plugin automatically scans neighbouring lines (up to 50 by default) to detec
 
 Auto Math includes snippets for common LaTeX environments. These automatically expand into multiline blocks with proper formatting.
 
-### Available Environments
-
-| Trigger | Expands to | Use case |
-|---------|------------|----------|
-| `\align` | `\begin{align}...\end{align}` | Aligned equations (with numbering) |
-| `\aligned` | `\begin{aligned}...\end{aligned}` | Aligned equations (no numbering) |
-| `\gather` | `\begin{gather}...\end{gather}` | Centred equations |
-| `\cases` | `\begin{cases}...\end{cases}` | Piecewise functions |
-| `\array` | `\begin{array}{}...\end{array}` | Custom arrays |
-| `\matrix` | `\begin{matrix}...\end{matrix}` | Matrix (no brackets) |
-| `\pmatrix` | `\begin{pmatrix}...\end{pmatrix}` | Matrix with ( ) |
-| `\bmatrix` | `\begin{bmatrix}...\end{bmatrix}` | Matrix with [ ] |
-| `\split` | `\begin{split}...\end{split}` | Split equations |
-
 ### Example Usage
 
 **Input:**
@@ -179,7 +181,7 @@ $$
 
 ### 💡 Customisation Example
 
-If you’d like to add your own expansions, open `auto-math.rules.json` and add entries like:
+If you'd like to add your own expansions, open `auto-math.rules.json` and add entries like:
 
 ```json
 [
@@ -195,9 +197,9 @@ Then click **Reload rules now** — your new triggers will be active instantly.
 
 ### 🪶 Notes
 
-- The plugin works fully offline and doesn’t require any external dependencies.
+- The plugin works fully offline and doesn't require any external dependencies.
 
-- Uses plain JSON and Obsidian’s own vault API.
+- Uses plain JSON and Obsidian's own vault API.
 
 - Safe to edit while running — changes are detected automatically.
 
