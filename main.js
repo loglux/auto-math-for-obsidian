@@ -351,19 +351,34 @@ module.exports = class AutoMathPlugin extends Plugin {
         return { type: "none" };
     }
 
-    // --- Expansion core ---
+    // --- Expansion core (OPTIMISED) ---
 
     _maybeExpand(editor) {
         const cursor = editor.getCursor();
         const lineText = editor.getLine(cursor.line);
+
+        // OPTIMISATION 1: Early exit if cursor at start of line
+        if (cursor.ch === 0) return;
+
+        const lastChar = lineText[cursor.ch - 1];
+
+        // OPTIMISATION 2: Quick check - last character must be part of a trigger
+        // Valid trigger endings: letters, backslash, ^, _, }
+        if (!/[a-zA-Z\\^_}]/.test(lastChar)) return;
+
         const uptoRaw = lineText.slice(0, cursor.ch);
         const upto = normalizeText(uptoRaw);
 
         const rules = this._getRules();
         if (!rules.length) return;
 
+        // OPTIMISATION 3: Only check rules that could possibly match
         for (const rule of rules) {
             const trig = normalizeText(rule.trigger);
+
+            // Skip if trigger is longer than what we've typed
+            if (trig.length > upto.length) continue;
+
             if (!upto.endsWith(trig)) continue;
 
             const delta = uptoRaw.length - upto.length;
@@ -381,7 +396,7 @@ module.exports = class AutoMathPlugin extends Plugin {
                     if (ctx.type === "display") {
                         expanded = smart.display;
                     } else {
-                        // inline or outside math
+                        // inline or outside maths
                         expanded = smart.inline;
                     }
                 }
@@ -412,6 +427,7 @@ module.exports = class AutoMathPlugin extends Plugin {
             if (this.settings.debug) {
                 console.log("[Auto Math] matched trigger", trig, "expanded to", expanded);
             }
+
             return;
         }
     }
