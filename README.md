@@ -104,6 +104,23 @@ Open **Settings → Auto Math** to customise:
 
 ---
 
+### 📐 Multiline Maths Mode
+
+Auto Math now supports Smart Limits in multiline `$$...$$` blocks.
+
+**Example:**
+```markdown
+$$
+\int x dx  ← expands to \int\limits_{}^{}
+$$
+```
+
+The plugin automatically scans neighbouring lines (up to 50 by default) to detect display maths context.
+
+**Technical note:** The scan depth can be adjusted by modifying `maxScanLines` in the plugin settings file (default: 50 lines). This is stored in `.obsidian/plugins/auto-math/data.json`.
+
+---
+
 ### 💡 Customisation Example
 
 If you’d like to add your own expansions, open `auto-math.rules.json` and add entries like:

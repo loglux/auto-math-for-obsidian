@@ -14,7 +14,7 @@ const DEFAULT_RULES = [
     { trigger: "\\sqrt",      expand: "\\sqrt{}" },
     { trigger: "\\root",      expand: "\\sqrt[]{}" },
     { trigger: "\\pow",       expand: "{}^{}" },
-    { trigger: "\\sum",       expand: "\\sum_{}^{}"},
+    { trigger: "\\sum",       expand: "\\sum_{}^{}" },
     { trigger: "\\int",       expand: "\\int_{}^{}" },
     { trigger: "\\lim",       expand: "\\lim_{}" },
     { trigger: "\\vec",       expand: "\\vec{}" },
@@ -36,6 +36,9 @@ const DEFAULT_RULES = [
 
 /*
  * Smart limit operators
+ * These operators switch between inline and display variants.
+ * inline  → compact form
+ * display → operator with \limits for top/bottom indices
  */
 const SMART_LIMIT_OPERATORS = {
     "\\int": {
@@ -54,8 +57,7 @@ const DEFAULT_SETTINGS = {
     rulesPath: ".obsidian/plugins/auto-math/rules.json",
     debug: true,
     smartLimits: true,
-    multilineMathMode: true,
-    maxScanLines: 50,
+    maxScanLines: 50, // maximum lines to scan for multiline $$...$$ blocks
     rulesJson: JSON.stringify(DEFAULT_RULES, null, 2),
 };
 
@@ -285,11 +287,20 @@ module.exports = class AutoMathPlugin extends Plugin {
         return this._rules || [];
     }
 
+    /**
+     * Detect whether the cursor is inside $...$ or $$...$$ blocks.
+     *
+     * Supports both single-line and multiline $$...$$ blocks.
+     * For multiline blocks, scans up to maxScanLines in both directions.
+     */
     _getMathContext(editor, pos) {
         const currentLine = pos.line;
         const lineText = editor.getLine(currentLine) ?? "";
         const len = lineText.length;
 
+        // Check current line for single-line patterns (fast path)
+
+        // $$ ... $$ (display) on a single line
         const display = [];
         for (let i = 0; i < len - 1; i++) {
             if (lineText[i] === "$" && lineText[i + 1] === "$") {
@@ -305,6 +316,7 @@ module.exports = class AutoMathPlugin extends Plugin {
             }
         }
 
+        // $ ... $ (inline) on a single line, ignoring $$ which are already handled
         const singles = [];
         for (let i = 0; i < len; i++) {
             if (lineText[i] === "$") {
@@ -323,27 +335,28 @@ module.exports = class AutoMathPlugin extends Plugin {
             }
         }
 
-        if (this.settings.multilineMathMode) {
-            const maxScan = this.settings.maxScanLines || 50;
+        // Check for multiline $$...$$ blocks
+        const maxScan = this.settings.maxScanLines || 50;
 
-            let displayStart = null;
-            for (let i = currentLine - 1; i >= Math.max(0, currentLine - maxScan); i--) {
+        // Search upwards for opening $$
+        let displayStart = null;
+        for (let i = currentLine - 1; i >= Math.max(0, currentLine - maxScan); i--) {
+            const line = editor.getLine(i).trim();
+            if (line === "$$") {
+                displayStart = i;
+                break;
+            }
+        }
+
+        // If found opening $$, search downwards for closing $$
+        if (displayStart !== null) {
+            for (let i = currentLine + 1; i < Math.min(editor.lineCount(), currentLine + maxScan); i++) {
                 const line = editor.getLine(i).trim();
                 if (line === "$$") {
-                    displayStart = i;
-                    break;
-                }
-            }
-
-            if (displayStart !== null) {
-                for (let i = currentLine + 1; i < Math.min(editor.lineCount(), currentLine + maxScan); i++) {
-                    const line = editor.getLine(i).trim();
-                    if (line === "$$") {
-                        if (this.settings.debug) {
-                            console.log(`[Auto Math] multiline display mode detected: lines ${displayStart}-${i}`);
-                        }
-                        return { type: "display" };
+                    if (this.settings.debug) {
+                        console.log(`[Auto Math] multiline display mode detected: lines ${displayStart}-${i}`);
                     }
+                    return { type: "display" };
                 }
             }
         }
@@ -355,10 +368,13 @@ module.exports = class AutoMathPlugin extends Plugin {
         const cursor = editor.getCursor();
         const lineText = editor.getLine(cursor.line);
 
+        // Early exit if cursor at start of line
         if (cursor.ch === 0) return;
 
         const lastChar = lineText[cursor.ch - 1];
 
+        // Quick check - last character must be part of a trigger
+        // Valid trigger endings: letters, backslash, ^, _, }
         if (!/[a-zA-Z\\^_}]/.test(lastChar)) return;
 
         const uptoRaw = lineText.slice(0, cursor.ch);
@@ -370,6 +386,7 @@ module.exports = class AutoMathPlugin extends Plugin {
         for (const rule of rules) {
             const trig = normalizeText(rule.trigger);
 
+            // Skip if trigger is longer than what we've typed
             if (trig.length > upto.length) continue;
 
             if (!upto.endsWith(trig)) continue;
@@ -381,6 +398,7 @@ module.exports = class AutoMathPlugin extends Plugin {
 
             let expanded = rule.expand;
 
+            // Smart limits: choose template for \int / \sum based on context
             if (this.settings.smartLimits) {
                 const smart = SMART_LIMIT_OPERATORS[trig];
                 if (smart) {
@@ -395,6 +413,7 @@ module.exports = class AutoMathPlugin extends Plugin {
 
             editor.setLine(cursor.line, before + expanded + after);
 
+            // Place cursor inside the first {} if present
             const idxBraces = expanded.indexOf("{}");
             if (idxBraces >= 0) {
                 const pos = before.length + expanded.indexOf("{") + 1;
@@ -511,20 +530,6 @@ class AutoMathSettingsTab extends require("obsidian").PluginSettingTab {
                     .setValue(this.plugin.settings.smartLimits)
                     .onChange(async (v) => {
                         this.plugin.settings.smartLimits = v;
-                        await this.plugin.saveSettings();
-                    })
-            );
-
-        new Setting(containerEl)
-            .setName("Multiline maths mode")
-            .setDesc(
-                "Enable Smart Limits inside multiline $$...$$ blocks. Scans neighbouring lines to detect display maths context."
-            )
-            .addToggle((t) =>
-                t
-                    .setValue(this.plugin.settings.multilineMathMode)
-                    .onChange(async (v) => {
-                        this.plugin.settings.multilineMathMode = v;
                         await this.plugin.saveSettings();
                     })
             );
