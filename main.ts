@@ -1,12 +1,17 @@
-const { Plugin, Notice, Setting } = require("obsidian");
+import { Plugin, Notice, Setting, Editor, MarkdownView, PluginSettingTab, App, TFile } from "obsidian";
 
 // Remove zero-width characters (they break trigger matching)
-function normalizeText(s) {
+function normalizeText(s: string | null | undefined): string {
     return (s ?? "").replace(/[\u200B\uFEFF]/g, "");
 }
 
+interface Rule {
+    trigger: string;
+    expand: string;
+}
+
 // Default snippet rules (fallback if external file is missing or invalid)
-const DEFAULT_RULES = [
+const DEFAULT_RULES: Rule[] = [
     { trigger: "\\abs",       expand: "\\left|{}\\right|" },
     { trigger: "\\norm",      expand: "\\left\\|{}\\right\\|" },
     { trigger: "\\frac",      expand: "\\frac{}{}" },
@@ -44,13 +49,18 @@ const DEFAULT_RULES = [
     { trigger: "\\split",     expand: "\\begin{split}\n|\n\\end{split}" },
 ];
 
+interface SmartOperator {
+    inline: string;
+    display: string;
+}
+
 /*
  * Smart limit operators
  * These operators switch between inline and display variants.
  * inline  → compact form
  * display → operator with \limits for top/bottom indices
  */
-const SMART_LIMIT_OPERATORS = {
+const SMART_LIMIT_OPERATORS: Record<string, SmartOperator> = {
     "\\int": {
         inline: "\\int_{}^{}",
         display: "\\int\\limits_{}^{}",
@@ -61,8 +71,17 @@ const SMART_LIMIT_OPERATORS = {
     },
 };
 
+interface AutoMathSettings {
+    enabled: boolean;
+    rulesPath: string;
+    debug: boolean;
+    smartLimits: boolean;
+    maxScanLines: number;
+    rulesJson: string;
+}
+
 // Default plugin settings
-const DEFAULT_SETTINGS = {
+const DEFAULT_SETTINGS: AutoMathSettings = {
     enabled: true,
     rulesPath: ".obsidian/plugins/auto-math/rules.json",
     debug: true,
@@ -71,10 +90,20 @@ const DEFAULT_SETTINGS = {
     rulesJson: JSON.stringify(DEFAULT_RULES, null, 2),
 };
 
-module.exports = class AutoMathPlugin extends Plugin {
+interface MathContext {
+    type: "inline" | "display" | "none";
+}
+
+export default class AutoMathPlugin extends Plugin {
+    settings: AutoMathSettings;
+    statusEl: HTMLElement | null = null;
+    private _rules: Rule[] = [];
+    _workRules: Rule[] | null = null;
+
     async onload() {
-        this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
-        const version = this.manifest && this.manifest.version ? this.manifest.version : "unknown";
+        await this.loadSettings();
+
+        const version = this.manifest?.version ?? "unknown";
         console.log("[Auto Math] loaded v" + version);
 
         const exists = await this._rulesFileExists(this.settings.rulesPath);
@@ -132,7 +161,7 @@ module.exports = class AutoMathPlugin extends Plugin {
         this._registerRulesWatcher();
 
         this.registerEvent(
-            this.app.workspace.on("editor-change", (editor) => {
+            this.app.workspace.on("editor-change", (editor: Editor) => {
                 if (!this.settings.enabled) return;
                 if (!editor) return;
                 try {
@@ -158,7 +187,7 @@ module.exports = class AutoMathPlugin extends Plugin {
         this.statusEl.setText(this.settings.enabled ? "Auto Math: ON" : "Auto Math: OFF");
     }
 
-    async _rulesFileExists(path) {
+    async _rulesFileExists(path: string): Promise<boolean> {
         try {
             return await this.app.vault.adapter.exists(path);
         } catch (_) {
@@ -166,7 +195,7 @@ module.exports = class AutoMathPlugin extends Plugin {
         }
     }
 
-    async _readVaultFile(path) {
+    async _readVaultFile(path: string): Promise<string | null> {
         try {
             return await this.app.vault.adapter.read(path);
         } catch (e) {
@@ -175,7 +204,7 @@ module.exports = class AutoMathPlugin extends Plugin {
         }
     }
 
-    async _writeVaultFile(path, text) {
+    async _writeVaultFile(path: string, text: string): Promise<boolean> {
         try {
             await this.app.vault.adapter.write(path, text);
             return true;
@@ -202,13 +231,15 @@ module.exports = class AutoMathPlugin extends Plugin {
         const p = this.settings.rulesPath;
         try {
             const file = this.app.vault.getAbstractFileByPath(p);
-            if (file) await this.app.workspace.getLeaf(true).openFile(file);
+            if (file && file instanceof TFile) {
+                await this.app.workspace.getLeaf(true).openFile(file);
+            }
         } catch (e) {
             console.error("[Auto Math] cannot open rules file", e);
         }
     }
 
-    async _loadExternalRules(showErrors) {
+    async _loadExternalRules(showErrors: boolean): Promise<boolean> {
         const p = this.settings.rulesPath;
         const raw = await this._readVaultFile(p);
 
@@ -231,7 +262,7 @@ module.exports = class AutoMathPlugin extends Plugin {
         return !!this._rules.length;
     }
 
-    _parseRulesText(text, showErrors) {
+    _parseRulesText(text: string, showErrors: boolean): Rule[] | null {
         try {
             const trimmed = text.trim();
 
@@ -245,11 +276,12 @@ module.exports = class AutoMathPlugin extends Plugin {
                 .map((l) => l.trim())
                 .filter(Boolean);
 
-            const arr = [];
+            const arr: any[] = [];
             for (const l of lines) {
                 try {
                     arr.push(JSON.parse(l));
                 } catch {
+                    // ignore invalid lines
                 }
             }
 
@@ -260,17 +292,17 @@ module.exports = class AutoMathPlugin extends Plugin {
         }
     }
 
-    _sanitizeRules(arr) {
+    _sanitizeRules(arr: any): Rule[] {
         if (!Array.isArray(arr)) return [];
 
         return arr
             .filter(
-                (r) =>
+                (r: any) =>
                     r &&
                     typeof r.trigger === "string" &&
                     typeof r.expand === "string"
             )
-            .map((r) => ({
+            .map((r: any) => ({
                 trigger: normalizeText(r.trigger),
                 expand: r.expand,
             }))
@@ -279,7 +311,7 @@ module.exports = class AutoMathPlugin extends Plugin {
 
     _registerRulesWatcher() {
         const path = this.settings.rulesPath;
-        const onChange = async (file) => {
+        const onChange = async (file: any) => {
             if (file && file.path === path) {
                 if (this.settings.debug)
                     console.log("[Auto Math] detected change in rules file:", path);
@@ -293,7 +325,7 @@ module.exports = class AutoMathPlugin extends Plugin {
         this.registerEvent(this.app.vault.on("delete", onChange));
     }
 
-    _getRules() {
+    _getRules(): Rule[] {
         return this._rules || [];
     }
 
@@ -303,7 +335,7 @@ module.exports = class AutoMathPlugin extends Plugin {
      * Supports both single-line and multiline $$...$$ blocks.
      * For multiline blocks, scans up to maxScanLines in both directions.
      */
-    _getMathContext(editor, pos) {
+    _getMathContext(editor: Editor, pos: { line: number; ch: number }): MathContext {
         const currentLine = pos.line;
         const lineText = editor.getLine(currentLine) ?? "";
         const len = lineText.length;
@@ -311,7 +343,7 @@ module.exports = class AutoMathPlugin extends Plugin {
         // Check current line for single-line patterns (fast path)
 
         // $$ ... $$ (display) on a single line
-        const display = [];
+        const display: number[] = [];
         for (let i = 0; i < len - 1; i++) {
             if (lineText[i] === "$" && lineText[i + 1] === "$") {
                 display.push(i);
@@ -327,7 +359,7 @@ module.exports = class AutoMathPlugin extends Plugin {
         }
 
         // $ ... $ (inline) on a single line, ignoring $$ which are already handled
-        const singles = [];
+        const singles: number[] = [];
         for (let i = 0; i < len; i++) {
             if (lineText[i] === "$") {
                 if (i + 1 < len && lineText[i + 1] === "$") {
@@ -349,7 +381,7 @@ module.exports = class AutoMathPlugin extends Plugin {
         const maxScan = this.settings.maxScanLines || 50;
 
         // Search upwards for opening $$
-        let displayStart = null;
+        let displayStart: number | null = null;
         for (let i = currentLine - 1; i >= Math.max(0, currentLine - maxScan); i--) {
             const line = editor.getLine(i).trim();
             if (line === "$$") {
@@ -374,7 +406,7 @@ module.exports = class AutoMathPlugin extends Plugin {
         return { type: "none" };
     }
 
-    _maybeExpand(editor) {
+    _maybeExpand(editor: Editor) {
         const cursor = editor.getCursor();
         const lineText = editor.getLine(cursor.line);
 
@@ -439,7 +471,7 @@ module.exports = class AutoMathPlugin extends Plugin {
     /**
      * Expand a single-line template
      */
-    _expandSingleLine(editor, cursor, before, after, expanded) {
+    _expandSingleLine(editor: Editor, cursor: { line: number; ch: number }, before: string, after: string, expanded: string) {
         editor.setLine(cursor.line, before + expanded + after);
 
         // Place cursor inside the first {} if present
@@ -466,7 +498,7 @@ module.exports = class AutoMathPlugin extends Plugin {
     /**
      * Expand a multiline template (containing \n)
      */
-    _expandMultiline(editor, cursor, before, after, expanded) {
+    _expandMultiline(editor: Editor, cursor: { line: number; ch: number }, before: string, after: string, expanded: string) {
         const lines = expanded.split('\n');
         const cursorLine = cursor.line;
 
@@ -527,18 +559,24 @@ module.exports = class AutoMathPlugin extends Plugin {
         }
     }
 
+    async loadSettings() {
+        this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
+    }
+
     async saveSettings() {
         await this.saveData(this.settings);
     }
-};
+}
 
-class AutoMathSettingsTab extends require("obsidian").PluginSettingTab {
-    constructor(app, plugin) {
+class AutoMathSettingsTab extends PluginSettingTab {
+    plugin: AutoMathPlugin;
+
+    constructor(app: App, plugin: AutoMathPlugin) {
         super(app, plugin);
         this.plugin = plugin;
     }
 
-    display() {
+    display(): void {
         const { containerEl } = this;
         containerEl.empty();
         containerEl.createEl("h2", { text: "Auto Math" });
@@ -632,7 +670,7 @@ class AutoMathSettingsTab extends require("obsidian").PluginSettingTab {
         const editorEl = containerEl.createDiv();
         let work = this.plugin._workRules || null;
 
-        const renderEditor = async (opts = { reload: false }) => {
+        const renderEditor = async (opts: { reload: boolean } = { reload: false }) => {
             editorEl.empty();
 
             if (!work || opts.reload) {
@@ -644,38 +682,44 @@ class AutoMathSettingsTab extends require("obsidian").PluginSettingTab {
             const list = editorEl.createDiv();
             list.addClass("am-rules-list");
 
-            work.forEach((rule, idx) => {
-                const row = list.createDiv({ cls: "am-rule-row" });
+            if (work) {
+                work.forEach((rule, idx) => {
+                    const row = list.createDiv({ cls: "am-rule-row" });
 
-                new Setting(row)
-                    .setName("Trigger")
-                    .addText((t) => {
-                        t.setValue(rule.trigger).onChange((v) => (rule.trigger = v));
-                    });
+                    new Setting(row)
+                        .setName("Trigger")
+                        .addText((t) => {
+                            t.setValue(rule.trigger).onChange((v) => (rule.trigger = v));
+                        });
 
-                new Setting(row)
-                    .setName("Expand")
-                    .addText((t) => {
-                        t.setValue(rule.expand).onChange((v) => (rule.expand = v));
-                    });
+                    new Setting(row)
+                        .setName("Expand")
+                        .addText((t) => {
+                            t.setValue(rule.expand).onChange((v) => (rule.expand = v));
+                        });
 
-                new Setting(row).addButton((b) =>
-                    b.setButtonText("Delete").onClick(() => {
-                        work.splice(idx, 1);
-                        renderEditor();
-                    })
-                );
+                    new Setting(row).addButton((b) =>
+                        b.setButtonText("Delete").onClick(() => {
+                            if (work) {
+                                work.splice(idx, 1);
+                                renderEditor();
+                            }
+                        })
+                    );
 
-                row.createEl("hr");
-            });
+                    row.createEl("hr");
+                });
+            }
 
             const addWrap = editorEl.createDiv();
             new Setting(addWrap)
                 .setName("Add new rule")
                 .addButton((b) =>
                     b.setButtonText("+ Add").onClick(() => {
-                        work.push({ trigger: "\\\\new", expand: "\\\\new{}" });
-                        renderEditor();
+                        if (work) {
+                            work.push({ trigger: "\\\\new", expand: "\\\\new{}" });
+                            renderEditor();
+                        }
                     })
                 );
 
@@ -685,6 +729,8 @@ class AutoMathSettingsTab extends require("obsidian").PluginSettingTab {
                 .setDesc(`Writes JSON to ${this.plugin.settings.rulesPath}`)
                 .addButton((b) =>
                     b.setButtonText("Save").onClick(async () => {
+                        if (!work) return;
+
                         const cleaned = work
                             .filter(
                                 (r) =>
