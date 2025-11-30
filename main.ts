@@ -42,25 +42,7 @@ const DEFAULT_RULES: Rule[] = [
     { trigger: "\\bar",       expand: "\\bar{}" },
     { trigger: "\\overline",  expand: "\\overline{}" },
     { trigger: "\\underline", expand: "\\underline{}" },
-    // Logarithms
     { trigger: "\\log",       expand: "\\log_{}" },
-    { trigger: "\\ln",        expand: "\\ln{}" },
-    { trigger: "\\lg",        expand: "\\lg{}" },
-    // Trigonometry
-    { trigger: "\\sin",       expand: "\\sin{}" },
-    { trigger: "\\cos",       expand: "\\cos{}" },
-    { trigger: "\\tan",       expand: "\\tan{}" },
-    { trigger: "\\cot",       expand: "\\cot{}" },
-    { trigger: "\\sec",       expand: "\\sec{}" },
-    { trigger: "\\csc",       expand: "\\csc{}" },
-    { trigger: "\\arcsin",    expand: "\\arcsin{}" },
-    { trigger: "\\arccos",    expand: "\\arccos{}" },
-    { trigger: "\\arctan",    expand: "\\arctan{}" },
-    // Hyperbolic functions
-    { trigger: "\\sinh",      expand: "\\sinh{}" },
-    { trigger: "\\cosh",      expand: "\\cosh{}" },
-    { trigger: "\\tanh",      expand: "\\tanh{}" },
-    { trigger: "\\coth",      expand: "\\coth{}" },
     { trigger: "^^",          expand: "^{}" },
     { trigger: "__",          expand: "_{}" },
     // LaTeX environments (multiline)

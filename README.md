@@ -21,7 +21,7 @@ It's like a mini _LaTeX auto-completion engine_ — lightweight, fast, and entir
 
 - 🔹 **Live reload** – changes in the rules file are applied immediately, no restart required.
 
-- 🔹 **Built-in math pack** – includes 60+ common LaTeX commands.
+- 🔹 **Built-in math pack** – includes 38 essential LaTeX commands.
 
 - 🔹 **Custom Rules Editor** – edit triggers and expansions directly inside Obsidian settings.
 
@@ -31,7 +31,7 @@ It's like a mini _LaTeX auto-completion engine_ — lightweight, fast, and entir
 
 ### 🧮 Default Rule Pack
 
-Auto Math v0.2.1 comes preloaded with 60+ triggers:
+Auto Math v0.2.1 comes preloaded with 38 essential triggers:
 
 #### Basic Commands
 
@@ -77,31 +77,6 @@ Auto Math v0.2.1 comes preloaded with 60+ triggers:
 |Trigger|Expands to|
 |---|---|
 |`\log`|`\log_{}`|
-|`\ln`|`\ln{}`|
-|`\lg`|`\lg{}`|
-
-#### Trigonometric Functions
-
-|Trigger|Expands to|
-|---|---|
-|`\sin`|`\sin{}`|
-|`\cos`|`\cos{}`|
-|`\tan`|`\tan{}`|
-|`\cot`|`\cot{}`|
-|`\sec`|`\sec{}`|
-|`\csc`|`\csc{}`|
-|`\arcsin`|`\arcsin{}`|
-|`\arccos`|`\arccos{}`|
-|`\arctan`|`\arctan{}`|
-
-#### Hyperbolic Functions
-
-|Trigger|Expands to|
-|---|---|
-|`\sinh`|`\sinh{}`|
-|`\cosh`|`\cosh{}`|
-|`\tanh`|`\tanh{}`|
-|`\coth`|`\coth{}`|
 
 #### LaTeX Environments
 
