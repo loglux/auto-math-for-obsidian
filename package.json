@@ -1,6 +1,6 @@
 {
   "name": "auto-math",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Auto-expands LaTeX snippets. External rules with live reload, Custom Rules Editor, and default math pack.",
   "main": "main.js",
   "scripts": {

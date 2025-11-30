@@ -21,7 +21,7 @@ It's like a mini _LaTeX auto-completion engine_ — lightweight, fast, and entir
 
 - 🔹 **Live reload** – changes in the rules file are applied immediately, no restart required.
 
-- 🔹 **Built-in math pack** – includes common LaTeX commands for fractions, roots, sums, limits, etc.
+- 🔹 **Built-in math pack** – includes 60+ common LaTeX commands.
 
 - 🔹 **Custom Rules Editor** – edit triggers and expansions directly inside Obsidian settings.
 
@@ -31,20 +31,23 @@ It's like a mini _LaTeX auto-completion engine_ — lightweight, fast, and entir
 
 ### 🧮 Default Rule Pack
 
-Auto Math comes preloaded with the following triggers:
+Auto Math v0.2.1 comes preloaded with 60+ triggers:
 
 #### Basic Commands
 
 |Trigger|Expands to|
 |---|---|
 |`\frac`|`\frac{}{}`|
+|`\dfrac`|`\dfrac{}{}`|
+|`\tfrac`|`\tfrac{}{}`|
+|`\cfrac`|`\cfrac{}{}`|
+|`\binom`|`\binom{}{}`|
+|`\dbinom`|`\dbinom{}{}`|
+|`\tbinom`|`\tbinom{}{}`|
 |`\text`|`\text{}`|
 |`\sqrt`|`\sqrt{}`|
 |`\root`|`\sqrt[]{}`|
 |`\pow`|`{}^{}`|
-|`\sum`|`\sum_{}^{}`|
-|`\int`|`\int_{}^{}`|
-|`\lim`|`\lim_{}`|
 |`\abs`|`\left\|{}\right\|`|
 |`\norm`|`\left\\|{}\right\\|`|
 |`\vec`|`\vec{}`|
@@ -52,16 +55,53 @@ Auto Math comes preloaded with the following triggers:
 |`\bar`|`\bar{}`|
 |`\overline`|`\overline{}`|
 |`\underline`|`\underline{}`|
+|`^^`|`^{}`|
+|`__`|`_{}`|
+
+#### Sums, Integrals & Limits
+
+|Trigger|Expands to|
+|---|---|
+|`\sum`|`\sum_{}^{}`|
+|`\int`|`\int_{}^{}`|
+|`\lim_`|`\lim_{}`|
+|`\limsup`|`\limsup_{}`|
+|`\liminf`|`\liminf_{}`|
+|`\max`|`\max_{}`|
+|`\min`|`\min_{}`|
+|`\inf`|`\inf_{}`|
+|`\sup`|`\sup_{}`|
+
+#### Logarithms
+
+|Trigger|Expands to|
+|---|---|
 |`\log`|`\log_{}`|
 |`\ln`|`\ln{}`|
+|`\lg`|`\lg{}`|
+
+#### Trigonometric Functions
+
+|Trigger|Expands to|
+|---|---|
 |`\sin`|`\sin{}`|
 |`\cos`|`\cos{}`|
 |`\tan`|`\tan{}`|
 |`\cot`|`\cot{}`|
 |`\sec`|`\sec{}`|
 |`\csc`|`\csc{}`|
-|`^^`|`^{}`|
-|`__`|`_{}`|
+|`\arcsin`|`\arcsin{}`|
+|`\arccos`|`\arccos{}`|
+|`\arctan`|`\arctan{}`|
+
+#### Hyperbolic Functions
+
+|Trigger|Expands to|
+|---|---|
+|`\sinh`|`\sinh{}`|
+|`\cosh`|`\cosh{}`|
+|`\tanh`|`\tanh{}`|
+|`\coth`|`\coth{}`|
 
 #### LaTeX Environments
 
