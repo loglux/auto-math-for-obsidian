@@ -130,7 +130,7 @@ export default class AutoMathPlugin extends Plugin {
         this.statusEl = this.addStatusBarItem();
         this._renderStatus();
 
-        this.addRibbonIcon("divide", "Toggle Auto Math", () => {
+        this.addRibbonIcon("divide", "Toggle plugin", () => {
             void this._toggle();
         });
 
@@ -610,11 +610,11 @@ class AutoMathSettingsTab extends PluginSettingTab {
         const { containerEl } = this;
         containerEl.empty();
 
-        new Setting(containerEl).setName("Auto Math").setHeading();
+        new Setting(containerEl).setName("General").setHeading();
 
         new Setting(containerEl)
             .setName("Enabled")
-            .setDesc("Turn Auto Math on or off.")
+            .setDesc("Turn the plugin on or off.")
             .addToggle((t) =>
                 t
                     .setValue(this.plugin.settings.enabled)
@@ -746,7 +746,7 @@ class AutoMathSettingsTab extends PluginSettingTab {
             new Setting(addWrap)
                 .setName("Add new rule")
                 .addButton((b) =>
-                    b.setButtonText("+ Add").onClick(() => {
+                    b.setButtonText("Add").onClick(() => {
                         if (work) {
                             work.push({ trigger: "\\\\new", expand: "\\\\new{}" });
                             void renderEditor();
