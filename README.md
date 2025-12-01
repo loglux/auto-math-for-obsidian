@@ -11,10 +11,6 @@ It's like a mini _LaTeX auto-completion engine_ — lightweight, fast, and entir
 
 - 🔹 **Instant snippet expansion** – type `\frac`, `\sqrt`, `\sum`, etc., and get ready-to-edit templates.
 
-- 🔹 **Smart Limits** – optional context‑aware behaviour for ∫ and ∑:
-    - `$…$` → compact form (`\int_{}^{}`, `\sum_{}^{}`)
-    - `$$…$$` → display form with limits (`\int\limits_{}^{}`, `\sum\limits_{}^{}`)
-
 - 🔹 **Multiline templates** – environments like `\align` expand across multiple lines with proper formatting.
 
 - 🔹 **Custom rule file** – all expansions are stored in `.obsidian/plugins/auto-math/rules.json` (user-editable).
@@ -31,7 +27,7 @@ It's like a mini _LaTeX auto-completion engine_ — lightweight, fast, and entir
 
 ### 🧮 Default Rule Pack
 
-Auto Math v0.2.1 comes preloaded with 38 essential triggers:
+Auto Math comes preloaded with 38 essential triggers:
 
 #### Basic Commands
 
@@ -69,7 +65,7 @@ Auto Math v0.2.1 comes preloaded with 38 essential triggers:
 |`\liminf`|`\liminf_{}`|
 |`\max`|`\max_{}`|
 |`\min`|`\min_{}`|
-|`\inf`|`\inf_{}`|
+|`\inf_`|`\inf_{}`|
 |`\sup`|`\sup_{}`|
 
 #### Logarithms
@@ -121,8 +117,6 @@ Open **Settings → Auto Math** to customise:
 
 - **Rules file path** – defaults to `.obsidian/plugins/auto-math/auto-math.rules.json`.
 
-- **Smart Limits** – context‑aware expansions for ∫ and ∑.
-
 - **Reload / Create / Open** – reload or open your external rules file.
 
 - **Debug logs** – show extra information in the developer console.
@@ -137,12 +131,12 @@ Open **Settings → Auto Math** to customise:
 
 ### 📐 Multiline Maths Mode
 
-Auto Math now supports Smart Limits in multiline `$$...$$` blocks.
+Auto Math supports multiline `$$...$$` blocks with proper context detection.
 
 **Example:**
 ```markdown
 $$
-\int x dx  ← expands to \int\limits_{}^{}
+\int x dx  ← expands to \int_{}^{}
 $$
 ```
 

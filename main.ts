@@ -35,7 +35,7 @@ const DEFAULT_RULES: Rule[] = [
     { trigger: "\\liminf",    expand: "\\liminf_{}" },
     { trigger: "\\max",       expand: "\\max_{}" },
     { trigger: "\\min",       expand: "\\min_{}" },
-    { trigger: "\\inf",       expand: "\\inf_{}" },
+    { trigger: "\\inf_",      expand: "\\inf_{}" },
     { trigger: "\\sup",       expand: "\\sup_{}" },
     { trigger: "\\vec",       expand: "\\vec{}" },
     { trigger: "\\hat",       expand: "\\hat{}" },
@@ -57,33 +57,10 @@ const DEFAULT_RULES: Rule[] = [
     { trigger: "\\split",     expand: "\\begin{split}\n|\n\\end{split}" },
 ];
 
-interface SmartOperator {
-    inline: string;
-    display: string;
-}
-
-/*
- * Smart limit operators
- * These operators switch between inline and display variants.
- * inline  → compact form
- * display → operator with \limits for top/bottom indices
- */
-const SMART_LIMIT_OPERATORS: Record<string, SmartOperator> = {
-    "\\int": {
-        inline: "\\int_{}^{}",
-        display: "\\int\\limits_{}^{}",
-    },
-    "\\sum": {
-        inline: "\\sum_{}^{}",
-        display: "\\sum\\limits_{}^{}",
-    },
-};
-
 interface AutoMathSettings {
     enabled: boolean;
     rulesPath: string;
     debug: boolean;
-    smartLimits: boolean;
     maxScanLines: number;
     rulesJson: string;
 }
@@ -93,7 +70,6 @@ const DEFAULT_SETTINGS: AutoMathSettings = {
     enabled: true,
     rulesPath: ".obsidian/plugins/auto-math/rules.json",
     debug: true,
-    smartLimits: true,
     maxScanLines: 50, // maximum lines to scan for multiline $$...$$ blocks
     rulesJson: JSON.stringify(DEFAULT_RULES, null, 2),
 };
@@ -458,19 +434,6 @@ export default class AutoMathPlugin extends Plugin {
 
             let expanded = rule.expand;
 
-            // Smart limits: choose template for \int / \sum based on context
-            if (this.settings.smartLimits) {
-                const smart = SMART_LIMIT_OPERATORS[trig];
-                if (smart) {
-                    const ctx = this._getMathContext(editor, cursor);
-                    if (ctx.type === "display") {
-                        expanded = smart.display;
-                    } else {
-                        expanded = smart.inline;
-                    }
-                }
-            }
-
             // Handle multiline expansions (containing \n)
             if (expanded.includes('\n')) {
                 this._expandMultiline(editor, cursor, before, after, expanded);
@@ -659,20 +622,6 @@ class AutoMathSettingsTab extends PluginSettingTab {
                     .setValue(this.plugin.settings.debug)
                     .onChange(async (v) => {
                         this.plugin.settings.debug = v;
-                        await this.plugin.saveSettings();
-                    })
-            );
-
-        new Setting(containerEl)
-            .setName("Smart limits")
-            .setDesc(
-                "Automatically choose \\int/\\int\\limits and \\sum/\\sum\\limits when expanding inside $...$ or $$...$$."
-            )
-            .addToggle((t) =>
-                t
-                    .setValue(this.plugin.settings.smartLimits)
-                    .onChange(async (v) => {
-                        this.plugin.settings.smartLimits = v;
                         await this.plugin.saveSettings();
                     })
             );
