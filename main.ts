@@ -1,4 +1,4 @@
-import { Plugin, Notice, Setting, Editor, MarkdownView, PluginSettingTab, App, TFile } from "obsidian";
+import { Plugin, Notice, Setting, Editor, PluginSettingTab, App, TFile } from "obsidian";
 
 // Remove zero-width characters (they break trigger matching)
 function normalizeText(s: string | null | undefined): string {
@@ -93,8 +93,8 @@ interface AutoMathSettings {
 // Default plugin settings
 const DEFAULT_SETTINGS: AutoMathSettings = {
     enabled: true,
-    rulesPath: ".obsidian/plugins/auto-math/rules.json",
-    debug: true,
+    rulesPath: "rules.json",
+    debug: false,
     smartLimits: false, // disabled by default - enable in settings if needed
     maxScanLines: 50, // maximum lines to scan for multiline $$...$$ blocks
     rulesJson: JSON.stringify(DEFAULT_RULES, null, 2),
@@ -114,13 +114,14 @@ export default class AutoMathPlugin extends Plugin {
         await this.loadSettings();
 
         const version = this.manifest?.version ?? "unknown";
-        console.log("[Auto Math] loaded v" + version);
+        console.debug("[Auto Math] loaded v" + version);
 
-        const exists = await this._rulesFileExists(this.settings.rulesPath);
+        const rulesPath = this.getFullRulesPath();
+        const exists = await this._rulesFileExists(rulesPath);
         new Notice(
             exists
                 ? `Auto Math: external rules found`
-                : `Auto Math: external rules NOT found`
+                : `Auto Math: external rules not found`
         );
 
         await this._loadExternalRules(true);
@@ -129,17 +130,21 @@ export default class AutoMathPlugin extends Plugin {
         this.statusEl = this.addStatusBarItem();
         this._renderStatus();
 
-        this.addRibbonIcon("divide", "Toggle Auto Math", () => this._toggle());
-
-        this.addCommand({
-            id: "auto-math-toggle",
-            name: "Toggle Auto Math",
-            callback: () => this._toggle(),
+        this.addRibbonIcon("divide", "Toggle Auto Math", () => {
+            void this._toggle();
         });
 
         this.addCommand({
-            id: "auto-math-reload-rules",
-            name: "Reload Auto Math rules",
+            id: "toggle",
+            name: "Toggle",
+            callback: () => {
+                void this._toggle();
+            },
+        });
+
+        this.addCommand({
+            id: "reload-rules",
+            name: "Reload rules",
             callback: async () => {
                 const ok = await this._loadExternalRules(true);
                 new Notice(
@@ -151,16 +156,16 @@ export default class AutoMathPlugin extends Plugin {
         });
 
         this.addCommand({
-            id: "auto-math-dump-rules",
-            name: "Dump Auto Math rules to console",
+            id: "dump-rules",
+            name: "Dump rules to console",
             callback: () => {
-                console.log("[Auto Math] active rules:", this._getRules());
+                console.debug("[Auto Math] active rules:", this._getRules());
                 new Notice(`Dumped ${this._getRules().length} rules to console`);
             },
         });
 
         this.addCommand({
-            id: "auto-math-create-or-open",
+            id: "create-or-open",
             name: "Create or open rules file",
             callback: async () => {
                 await this._ensureRulesFile();
@@ -185,9 +190,13 @@ export default class AutoMathPlugin extends Plugin {
         this.addSettingTab(new AutoMathSettingsTab(this.app, this));
     }
 
-    _toggle() {
+    getFullRulesPath(): string {
+        return `${this.app.vault.configDir}/plugins/auto-math/${this.settings.rulesPath}`;
+    }
+
+    async _toggle(): Promise<void> {
         this.settings.enabled = !this.settings.enabled;
-        this.saveSettings();
+        await this.saveSettings();
         this._renderStatus();
         new Notice(`Auto Math: ${this.settings.enabled ? "ON" : "OFF"}`);
     }
@@ -200,7 +209,7 @@ export default class AutoMathPlugin extends Plugin {
     async _rulesFileExists(path: string): Promise<boolean> {
         try {
             return await this.app.vault.adapter.exists(path);
-        } catch (_) {
+        } catch {
             return false;
         }
     }
@@ -208,11 +217,11 @@ export default class AutoMathPlugin extends Plugin {
     async _readVaultFile(path: string): Promise<string | null> {
         try {
             return await this.app.vault.adapter.read(path);
-        } catch (e: any) {
+        } catch (e: unknown) {
             // File not found is expected behaviour when using built-in rules
-            if (e?.code === 'ENOENT') {
+            if (e && typeof e === 'object' && 'code' in e && (e as { code: string }).code === 'ENOENT') {
                 if (this.settings.debug) {
-                    console.log("[Auto Math] rules file not found (using built-in rules):", path);
+                    console.debug("[Auto Math] rules file not found (using built-in rules):", path);
                 }
             } else {
                 // Real errors (permissions, corrupted file, etc.) should still be logged
@@ -232,8 +241,8 @@ export default class AutoMathPlugin extends Plugin {
         }
     }
 
-    async _ensureRulesFile() {
-        const p = this.settings.rulesPath;
+    async _ensureRulesFile(): Promise<void> {
+        const p = this.getFullRulesPath();
         if (!(await this._rulesFileExists(p))) {
             const def = JSON.stringify(DEFAULT_RULES, null, 2) + "\n";
             const ok = await this._writeVaultFile(p, def);
@@ -245,8 +254,8 @@ export default class AutoMathPlugin extends Plugin {
         }
     }
 
-    async _openRulesFile() {
-        const p = this.settings.rulesPath;
+    async _openRulesFile(): Promise<void> {
+        const p = this.getFullRulesPath();
         try {
             const file = this.app.vault.getAbstractFileByPath(p);
             if (file && file instanceof TFile) {
@@ -258,27 +267,27 @@ export default class AutoMathPlugin extends Plugin {
     }
 
     async _loadExternalRules(showErrors: boolean): Promise<boolean> {
-        const p = this.settings.rulesPath;
+        const p = this.getFullRulesPath();
         const raw = await this._readVaultFile(p);
 
         if (raw && raw.trim()) {
             const parsed = this._parseRulesText(raw, showErrors);
             if (parsed && parsed.length) {
                 this._rules = parsed;
-                if (this.settings.debug) console.log("[Auto Math] loaded external rules", parsed);
+                if (this.settings.debug) console.debug("[Auto Math] loaded external rules", parsed);
                 return true;
             }
             if (showErrors) console.error("[Auto Math] external rules present but invalid at", p);
         } else {
             if (showErrors && this.settings.debug) {
-                console.log("[Auto Math] external rules not found, using built-in pack");
+                console.debug("[Auto Math] external rules not found, using built-in pack");
             }
         }
 
         const fallback = this._parseRulesText(this.settings.rulesJson, showErrors);
         this._rules = Array.isArray(fallback) ? fallback : [];
 
-        if (this.settings.debug) console.log("[Auto Math] loaded fallback rules", this._rules);
+        if (this.settings.debug) console.debug("[Auto Math] loaded fallback rules", this._rules);
         return !!this._rules.length;
     }
 
@@ -287,7 +296,7 @@ export default class AutoMathPlugin extends Plugin {
             const trimmed = text.trim();
 
             if (trimmed.startsWith("[")) {
-                const arr = JSON.parse(trimmed);
+                const arr = JSON.parse(trimmed) as unknown;
                 return this._sanitizeRules(arr);
             }
 
@@ -296,7 +305,7 @@ export default class AutoMathPlugin extends Plugin {
                 .map((l) => l.trim())
                 .filter(Boolean);
 
-            const arr: any[] = [];
+            const arr: unknown[] = [];
             for (const l of lines) {
                 try {
                     arr.push(JSON.parse(l));
@@ -312,29 +321,30 @@ export default class AutoMathPlugin extends Plugin {
         }
     }
 
-    _sanitizeRules(arr: any): Rule[] {
+    _sanitizeRules(arr: unknown): Rule[] {
         if (!Array.isArray(arr)) return [];
 
         return arr
             .filter(
-                (r: any) =>
-                    r &&
-                    typeof r.trigger === "string" &&
-                    typeof r.expand === "string"
+                (r: unknown): r is Record<string, unknown> =>
+                    r !== null &&
+                    typeof r === "object" &&
+                    typeof (r as Record<string, unknown>).trigger === "string" &&
+                    typeof (r as Record<string, unknown>).expand === "string"
             )
-            .map((r: any) => ({
-                trigger: normalizeText(r.trigger),
-                expand: r.expand,
+            .map((r) => ({
+                trigger: normalizeText(r.trigger as string),
+                expand: r.expand as string,
             }))
             .sort((a, b) => b.trigger.length - a.trigger.length);
     }
 
     _registerRulesWatcher() {
-        const path = this.settings.rulesPath;
-        const onChange = async (file: any) => {
+        const path = this.getFullRulesPath();
+        const onChange = async (file: TFile) => {
             if (file && file.path === path) {
                 if (this.settings.debug)
-                    console.log("[Auto Math] detected change in rules file:", path);
+                    console.debug("[Auto Math] detected change in rules file:", path);
                 await this._loadExternalRules(true);
                 new Notice(`Auto Math: reloaded (${this._getRules().length})`);
             }
@@ -416,7 +426,7 @@ export default class AutoMathPlugin extends Plugin {
                 const line = editor.getLine(i).trim();
                 if (line === "$$") {
                     if (this.settings.debug) {
-                        console.log(`[Auto Math] multiline display mode detected: lines ${displayStart}-${i}`);
+                        console.debug(`[Auto Math] multiline display mode detected: lines ${displayStart}-${i}`);
                     }
                     return { type: "display" };
                 }
@@ -481,7 +491,7 @@ export default class AutoMathPlugin extends Plugin {
             }
 
             if (this.settings.debug) {
-                console.log("[Auto Math] matched trigger", trig, "expanded to", expanded);
+                console.debug("[Auto Math] matched trigger", trig, "expanded to", expanded);
             }
 
             return;
@@ -599,7 +609,8 @@ class AutoMathSettingsTab extends PluginSettingTab {
     display(): void {
         const { containerEl } = this;
         containerEl.empty();
-        containerEl.createEl("h2", { text: "Auto Math" });
+
+        new Setting(containerEl).setName("Auto Math").setHeading();
 
         new Setting(containerEl)
             .setName("Enabled")
@@ -617,14 +628,14 @@ class AutoMathSettingsTab extends PluginSettingTab {
         new Setting(containerEl)
             .setName("Rules file path")
             .setDesc(
-                "Path relative to vault root (default: .obsidian/plugins/auto-math/rules.json)"
+                `Path relative to plugin folder (default: rules.json). Full path: ${this.plugin.getFullRulesPath()}`
             )
             .addText((t) =>
                 t
                     .setValue(this.plugin.settings.rulesPath)
                     .onChange(async (v) => {
                         this.plugin.settings.rulesPath =
-                            v.trim() || ".obsidian/plugins/auto-math/rules.json";
+                            v.trim() || "rules.json";
                         await this.plugin.saveSettings();
                     })
             );
@@ -668,7 +679,7 @@ class AutoMathSettingsTab extends PluginSettingTab {
         new Setting(containerEl)
             .setName("Smart limits")
             .setDesc(
-                "Automatically choose \\int/\\int\\limits and \\sum/\\sum\\limits when expanding inside $...$ or $$...$$."
+                "Automatically choose \\int/\\int\\limits when expanding inside $...$ or $$...$$."
             )
             .addToggle((t) =>
                 t
@@ -679,9 +690,9 @@ class AutoMathSettingsTab extends PluginSettingTab {
                     })
             );
 
-        containerEl.createEl("h3", { text: "Custom Rules Editor" });
+        new Setting(containerEl).setName("Custom rules editor").setHeading();
 
-        const help = containerEl.createEl("div");
+        const help = containerEl.createDiv();
         help.setText(
             "Edit your rules below. Use double backslashes \\\\ in triggers/expansions. '|' marks cursor; '{}' places cursor inside the first braces."
         );
@@ -722,7 +733,7 @@ class AutoMathSettingsTab extends PluginSettingTab {
                         b.setButtonText("Delete").onClick(() => {
                             if (work) {
                                 work.splice(idx, 1);
-                                renderEditor();
+                                void renderEditor();
                             }
                         })
                     );
@@ -738,7 +749,7 @@ class AutoMathSettingsTab extends PluginSettingTab {
                     b.setButtonText("+ Add").onClick(() => {
                         if (work) {
                             work.push({ trigger: "\\\\new", expand: "\\\\new{}" });
-                            renderEditor();
+                            void renderEditor();
                         }
                     })
                 );
@@ -746,7 +757,7 @@ class AutoMathSettingsTab extends PluginSettingTab {
             const actions = editorEl.createDiv();
             new Setting(actions)
                 .setName("Save rules to file")
-                .setDesc(`Writes JSON to ${this.plugin.settings.rulesPath}`)
+                .setDesc(`Writes JSON to ${this.plugin.getFullRulesPath()}`)
                 .addButton((b) =>
                     b.setButtonText("Save").onClick(async () => {
                         if (!work) return;
@@ -763,14 +774,14 @@ class AutoMathSettingsTab extends PluginSettingTab {
 
                         const text = JSON.stringify(cleaned, null, 2) + "\n";
                         const ok = await this.plugin._writeVaultFile(
-                            this.plugin.settings.rulesPath,
+                            this.plugin.getFullRulesPath(),
                             text
                         );
                         if (ok) {
                             this.plugin._workRules = null;
                             await this.plugin._loadExternalRules(true);
                             new Notice(`Saved ${cleaned.length} rules`);
-                            renderEditor({ reload: true });
+                            await renderEditor({ reload: true });
                         } else {
                             new Notice("Failed to save rules (see console)");
                         }
@@ -781,11 +792,11 @@ class AutoMathSettingsTab extends PluginSettingTab {
                         this.plugin._workRules = null;
                         work = null;
                         new Notice("Changes discarded");
-                        renderEditor({ reload: true });
+                        void renderEditor({ reload: true });
                     })
                 );
         };
 
-        renderEditor();
+        void renderEditor();
     }
 }

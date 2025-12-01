@@ -31,7 +31,7 @@ It's like a mini _LaTeX auto-completion engine_ — lightweight, fast, and entir
 
 ### 🧮 Default Rule Pack
 
-Auto Math comes preloaded with 38 essential triggers:
+Auto Math v0.2.3 comes preloaded with 38 essential triggers:
 
 #### Basic Commands
 
