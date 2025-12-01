@@ -206,8 +206,16 @@ export default class AutoMathPlugin extends Plugin {
     async _readVaultFile(path: string): Promise<string | null> {
         try {
             return await this.app.vault.adapter.read(path);
-        } catch (e) {
-            console.error("[Auto Math] read error", e);
+        } catch (e: any) {
+            // File not found is expected behaviour when using built-in rules
+            if (e?.code === 'ENOENT') {
+                if (this.settings.debug) {
+                    console.log("[Auto Math] rules file not found (using built-in rules):", path);
+                }
+            } else {
+                // Real errors (permissions, corrupted file, etc.) should still be logged
+                console.error("[Auto Math] failed to read rules file:", path, e);
+            }
             return null;
         }
     }
@@ -260,7 +268,9 @@ export default class AutoMathPlugin extends Plugin {
             }
             if (showErrors) console.error("[Auto Math] external rules present but invalid at", p);
         } else {
-            if (showErrors) console.warn("[Auto Math] external rules missing at", p);
+            if (showErrors && this.settings.debug) {
+                console.log("[Auto Math] external rules not found, using built-in pack");
+            }
         }
 
         const fallback = this._parseRulesText(this.settings.rulesJson, showErrors);
