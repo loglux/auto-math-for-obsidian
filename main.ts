@@ -610,7 +610,7 @@ class AutoMathSettingsTab extends PluginSettingTab {
         const { containerEl } = this;
         containerEl.empty();
 
-        new Setting(containerEl).setName("General").setHeading();
+        new Setting(containerEl).setName("Auto Math Settings").setHeading();
 
         new Setting(containerEl)
             .setName("Enabled")
