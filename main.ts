@@ -590,8 +590,15 @@ export default class AutoMathPlugin extends Plugin {
     }
 
     async loadSettings() {
-        this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
+        const data = (await this.loadData()) as AutoMathSettings | null;
+
+        this.settings = {
+            ...DEFAULT_SETTINGS,
+            ...(data ?? {}),
+        };
     }
+
+
 
     async saveSettings() {
         await this.saveData(this.settings);
@@ -610,7 +617,7 @@ class AutoMathSettingsTab extends PluginSettingTab {
         const { containerEl } = this;
         containerEl.empty();
 
-        new Setting(containerEl).setName("Auto Math Settings").setHeading();
+        new Setting(containerEl).setName("Custom rules").setHeading();
 
         new Setting(containerEl)
             .setName("Enabled")
