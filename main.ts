@@ -10,7 +10,7 @@ interface Rule {
     expand: string;
 }
 
-// Default snippet rules (fallback if external file is missing or invalid)
+// Default snippet rules (fallback if the external file is missing or invalid)
 const DEFAULT_RULES: Rule[] = [
     { trigger: "\\abs",       expand: "\\left|{}\\right|" },
     { trigger: "\\norm",      expand: "\\left\\|{}\\right\\|" },
@@ -65,7 +65,7 @@ interface SmartOperator {
 /*
  * Smart limit operators
  * These operators switch between inline and display variants.
- * inline  → compact form
+ * inline → compact form
  * display → operator with \limits for top/bottom indices
  */
 const SMART_LIMIT_OPERATORS: Record<string, SmartOperator> = {
@@ -370,7 +370,7 @@ export default class AutoMathPlugin extends Plugin {
         const lineText = editor.getLine(currentLine) ?? "";
         const len = lineText.length;
 
-        // Check current line for single-line patterns (fast path)
+        // Check the current line for single-line patterns (fast path)
 
         // $$ ... $$ (display) on a single line
         const display: number[] = [];
@@ -458,7 +458,7 @@ export default class AutoMathPlugin extends Plugin {
         for (const rule of rules) {
             const trig = normalizeText(rule.trigger);
 
-            // Skip if trigger is longer than what we've typed
+            // Skip if the trigger is longer than what we've typed
             if (trig.length > upto.length) continue;
 
             if (!upto.endsWith(trig)) continue;
@@ -470,7 +470,7 @@ export default class AutoMathPlugin extends Plugin {
 
             let expanded = rule.expand;
 
-            // Smart limits: choose template for \int / \sum based on context
+            // Smart limits: choose a template for \int / \sum based on context
             if (this.settings.smartLimits) {
                 const smart = SMART_LIMIT_OPERATORS[trig];
                 if (smart) {
@@ -504,7 +504,7 @@ export default class AutoMathPlugin extends Plugin {
     _expandSingleLine(editor: Editor, cursor: { line: number; ch: number }, before: string, after: string, expanded: string) {
         editor.setLine(cursor.line, before + expanded + after);
 
-        // Place cursor inside the first {} if present
+        // Place the cursor inside the first {} if present
         const idxBraces = expanded.indexOf("{}");
         if (idxBraces >= 0) {
             const pos = before.length + expanded.indexOf("{") + 1;
@@ -532,7 +532,7 @@ export default class AutoMathPlugin extends Plugin {
         const lines = expanded.split('\n');
         const cursorLine = cursor.line;
 
-        // Find cursor marker (| or first {})
+        // Find the cursor marker (| or first {})
         let cursorLineOffset = 0;
         let cursorChOffset = 0;
         let foundCursor = false;
