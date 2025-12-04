@@ -617,8 +617,6 @@ class AutoMathSettingsTab extends PluginSettingTab {
         const { containerEl } = this;
         containerEl.empty();
 
-        new Setting(containerEl).setName("Custom rules").setHeading();
-
         new Setting(containerEl)
             .setName("Enabled")
             .setDesc("Turn the plugin on or off.")
