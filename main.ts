@@ -30,7 +30,7 @@ const DEFAULT_RULES: Rule[] = [
     { trigger: "\\sum",       expand: "\\sum_{}^{}" },
     { trigger: "\\int",       expand: "\\int_{}^{}" },
     // Limits & Bounds
-    { trigger: "\\lim_",       expand: "\\lim_{}" },
+    { trigger: "\\lim_",      expand: "\\lim_{}" },
     { trigger: "\\limsup",    expand: "\\limsup_{}" },
     { trigger: "\\liminf",    expand: "\\liminf_{}" },
     { trigger: "\\max",       expand: "\\max_{}" },

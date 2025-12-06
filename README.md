@@ -218,6 +218,12 @@ Then click **Reload rules now** — your new triggers will be active instantly.
 
 - Safe to edit while running — changes are detected automatically.
 
+---
+
+## Documentation
+
+For more details, tips, and extended explanations, check the project Wiki:
+https://github.com/loglux/auto-math-for-obsidian/wiki
 
 ---
 
