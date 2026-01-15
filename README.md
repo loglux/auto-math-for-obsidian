@@ -31,7 +31,7 @@ It's like a mini _LaTeX auto-completion engine_ — lightweight, fast, and entir
 
 ### 🧮 Default Rule Pack
 
-Auto Math v0.2.3 comes preloaded with 38 essential triggers:
+Auto Math v0.2.5 comes preloaded with 38 essential triggers:
 
 #### Basic Commands
 
@@ -119,7 +119,7 @@ Open **Settings → Auto Math** to customise:
 
 - **Enabled** – toggle Auto Math on/off.
 
-- **Rules file path** – defaults to `.obsidian/plugins/auto-math/auto-math.rules.json`.
+- **Rules file path** – defaults to `.obsidian/plugins/auto-math/rules.json`.
 
 - **Smart Limits** – context‑aware expansions for ∫ (disabled by default, enable in settings if needed).
 
@@ -127,7 +127,7 @@ Open **Settings → Auto Math** to customise:
 
 - **Debug logs** – show extra information in the developer console.
 
-- **Custom Rules Editor** – view, add, delete, and edit your rules interactively.
+- **Custom Rules Editor** – view, add, delete, filter, sort, and edit your rules interactively.
 
 - **Save rules to file** – writes changes to the JSON file immediately.
 

@@ -1,13 +1,13 @@
 {
   "name": "auto-math",
-  "version": "0.2.4",
+  "version": "0.2.5",
   "description": "Auto-expands LaTeX snippets. External rules with live reload, Custom Rules Editor, and default math pack.",
   "main": "main.js",
   "scripts": {
     "dev": "node esbuild.config.mjs",
     "build": "tsc -noEmit -skipLibCheck && node esbuild.config.mjs production",
-    "lint": "eslint main.ts --ext .ts",
-    "lint:fix": "eslint main.ts --ext .ts --fix",
+    "lint": "eslint main.ts rules.ts --ext .ts",
+    "lint:fix": "eslint main.ts rules.ts --ext .ts --fix",
     "version": "node version-bump.mjs && git add manifest.json versions.json"
   },
   "keywords": [],
