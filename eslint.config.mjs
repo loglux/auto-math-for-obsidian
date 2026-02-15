@@ -6,7 +6,7 @@ import obsidianmd from "eslint-plugin-obsidianmd";
 export default defineConfig([
     ...obsidianmd.configs.recommended,
     {
-        files: ["**/*.ts"],
+        files: ["src/**/*.ts"],
         languageOptions: {
             parser: tsparser,
             parserOptions: { project: "./tsconfig.json" },
