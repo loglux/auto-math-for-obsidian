@@ -230,7 +230,7 @@ export default class AutoMathPlugin extends Plugin {
     }
 
     getFullRulesPath(): string {
-        return `${this.app.vault.configDir}/plugins/auto-math/${this.settings.rulesPath}`;
+        return `${this.manifest.dir}/${this.settings.rulesPath}`;
     }
 
     async _toggle(): Promise<void> {

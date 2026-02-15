@@ -29,6 +29,37 @@ It's like a mini _LaTeX auto-completion engine_ — lightweight, fast, and entir
 
 ---
 
+### 🆚 How Auto Math Differs from Other Plugins
+
+There are several LaTeX-related plugins available for Obsidian. Here's how Auto Math compares:
+
+| Feature | Auto Math | Latex Suite | Quick LaTeX | Completr |
+|---------|-----------|-------------|-------------|----------|
+| **Approach** | Instant trigger expansion | Snippets + shortcuts | Auto-completion menu | General autocomplete |
+| **Triggers** | Standard LaTeX commands | Custom shortcuts | Mixed | Various |
+| **Learning curve** | Minimal | Steeper | Moderate | Moderate |
+| **Configuration** | Simple JSON file | Complex config | Settings UI | Multiple sources |
+| **Focus** | Math snippets only | Full LaTeX workflow | LaTeX shortcuts | All text types |
+| **Popup menus** | None | Optional | Yes | Yes |
+
+#### Why choose Auto Math?
+
+1. **No new shortcuts to learn** — Triggers are standard LaTeX commands (`\frac`, `\sqrt`, `\int`). If you know LaTeX, you already know how to use Auto Math. Perfect for beginners learning LaTeX.
+
+2. **Simplicity** — Does one thing well: expand triggers instantly. No menus, no popups, no complex configuration.
+
+3. **Predictability** — Every trigger expands exactly the same way, every time. No magic, no surprises.
+
+4. **Flexibility** — All rules are stored in a simple JSON file. Edit it directly or use the built-in settings editor.
+
+5. **Lightweight** — Zero dependencies, minimal footprint, works entirely offline.
+
+**Best for:** Users who want fast, predictable LaTeX snippet expansion without learning new shortcuts or dealing with complex configuration.
+
+For detailed documentation, tutorials, and examples, visit the **[Auto Math Wiki](https://github.com/loglux/auto-math-for-obsidian/wiki)**.
+
+---
+
 ### 🧮 Default Rule Pack
 
 Auto Math v0.2.5 comes preloaded with 38 essential triggers:
