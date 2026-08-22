@@ -258,6 +258,31 @@ describe("_mergeRuleLayers", () => {
         );
         expect(merged.map((r) => r.trigger).sort()).toEqual(["\\frac", "\\myrule"].sort());
     });
+
+    it("hides a built-in rule when the overlay has a tombstone (empty expand) for it", () => {
+        const merged = plugin._mergeRuleLayers(
+            [
+                { trigger: "\\frac", expand: "\\frac{}{}" },
+                { trigger: "\\sqrt", expand: "\\sqrt{}" },
+            ],
+            [{ trigger: "\\frac", expand: "" }]
+        );
+        expect(merged).toEqual([{ trigger: "\\sqrt", expand: "\\sqrt{}" }]);
+    });
+
+    it("brings the built-in rule back once its tombstone is removed from the overlay", () => {
+        const withTombstone = plugin._mergeRuleLayers(
+            [{ trigger: "\\frac", expand: "\\frac{}{}" }],
+            [{ trigger: "\\frac", expand: "" }]
+        );
+        expect(withTombstone).toEqual([]);
+
+        const withoutTombstone = plugin._mergeRuleLayers(
+            [{ trigger: "\\frac", expand: "\\frac{}{}" }],
+            []
+        );
+        expect(withoutTombstone).toEqual([{ trigger: "\\frac", expand: "\\frac{}{}" }]);
+    });
 });
 
 describe("_loadExternalRules fallback (no external file)", () => {
@@ -282,16 +307,133 @@ describe("_loadExternalRules fallback (no external file)", () => {
     });
 });
 
+function createPluginWithVault(files: Record<string, string>): AutoMathPlugin {
+    const plugin = new AutoMathPlugin(
+        {
+            vault: {
+                adapter: {
+                    exists: async (p: string) => p in files,
+                    read: async (p: string) => {
+                        if (!(p in files)) {
+                            const err = new Error("not found") as Error & { code: string };
+                            err.code = "ENOENT";
+                            throw err;
+                        }
+                        return files[p];
+                    },
+                    write: async (p: string, text: string) => {
+                        files[p] = text;
+                    },
+                },
+            },
+        },
+        { dir: "vault/.obsidian/plugins/auto-math" }
+    );
+    plugin.settings = { ...DEFAULT_SETTINGS };
+    return plugin;
+}
+
+describe("_loadExternalRules with an external file", () => {
+    it("treats the file as an overlay on top of DEFAULT_RULES, not a full replacement", async () => {
+        const files: Record<string, string> = {
+            "vault/.obsidian/plugins/auto-math/rules.json": JSON.stringify([
+                { trigger: "\\frac", expand: "\\dfrac{}{}" },
+            ]),
+        };
+        const plugin = createPluginWithVault(files);
+
+        const ok = await plugin._loadExternalRules(false);
+        expect(ok).toBe(true);
+
+        const rules = plugin._getRules();
+        expect(rules.find((r) => r.trigger === "\\frac")?.expand).toBe("\\dfrac{}{}");
+        // Built-ins not mentioned in the file are still active.
+        expect(rules.some((r) => r.trigger === "\\paren")).toBe(true);
+    });
+
+    it("hides a built-in via a tombstone and brings it back once the tombstone is deleted from the file", async () => {
+        const files: Record<string, string> = {
+            "vault/.obsidian/plugins/auto-math/rules.json": JSON.stringify([
+                { trigger: "\\paren", expand: "" },
+            ]),
+        };
+        const plugin = createPluginWithVault(files);
+
+        await plugin._loadExternalRules(false);
+        expect(plugin._getRules().some((r) => r.trigger === "\\paren")).toBe(false);
+
+        files["vault/.obsidian/plugins/auto-math/rules.json"] = "[]";
+        await plugin._loadExternalRules(false);
+        expect(plugin._getRules().some((r) => r.trigger === "\\paren")).toBe(true);
+    });
+
+    it("exposes the overlay alone via _getOverlayRules, without the built-ins", async () => {
+        const files: Record<string, string> = {
+            "vault/.obsidian/plugins/auto-math/rules.json": JSON.stringify([
+                { trigger: "\\myrule", expand: "\\myrule{}" },
+            ]),
+        };
+        const plugin = createPluginWithVault(files);
+
+        await plugin._loadExternalRules(false);
+
+        expect(plugin._getOverlayRules()).toEqual([{ trigger: "\\myrule", expand: "\\myrule{}" }]);
+        expect(plugin._getRules().length).toBeGreaterThan(1);
+    });
+});
+
+describe("_resetToDefaults", () => {
+    it("clears both the external file and userRulesJson, restoring the pure built-in pack", async () => {
+        const files: Record<string, string> = {
+            "vault/.obsidian/plugins/auto-math/rules.json": JSON.stringify([
+                { trigger: "\\paren", expand: "" },
+                { trigger: "\\myrule", expand: "\\myrule{}" },
+            ]),
+        };
+        const plugin = createPluginWithVault(files);
+        plugin.settings.userRulesJson = JSON.stringify([{ trigger: "\\other", expand: "\\other{}" }]);
+        await plugin._loadExternalRules(false);
+        expect(plugin._getRules().some((r) => r.trigger === "\\paren")).toBe(false);
+
+        const ok = await plugin._resetToDefaults();
+
+        expect(ok).toBe(true);
+        expect(plugin.settings.userRulesJson).toBe("[]");
+        expect(plugin._getOverlayRules()).toEqual([]);
+        expect(plugin._getRules().some((r) => r.trigger === "\\paren")).toBe(true);
+        expect(plugin._getRules().some((r) => r.trigger === "\\myrule")).toBe(false);
+    });
+});
+
 describe("loadSettings migration", () => {
-    it("folds a pre-0.2.7 rulesJson snapshot into the new userRulesJson layer", async () => {
+    it("keeps genuine customisations from a pre-0.2.7 rulesJson snapshot", async () => {
         const plugin = new AutoMathPlugin(undefined, { dir: "vault/.obsidian/plugins/auto-math" });
         const legacyRulesJson = JSON.stringify([{ trigger: "\\myrule", expand: "\\myrule{}" }]);
         plugin.loadData = async () => ({ enabled: false, rulesJson: legacyRulesJson });
 
         await plugin.loadSettings();
 
-        expect(plugin.settings.userRulesJson).toBe(legacyRulesJson);
+        expect(JSON.parse(plugin.settings.userRulesJson)).toEqual([
+            { trigger: "\\myrule", expand: "\\myrule{}" },
+        ]);
         expect(plugin.settings.enabled).toBe(false);
+    });
+
+    it("drops legacy entries that are identical to the current built-in pack, keeps overrides", async () => {
+        const plugin = new AutoMathPlugin(undefined, { dir: "vault/.obsidian/plugins/auto-math" });
+        const legacyRulesJson = JSON.stringify([
+            { trigger: "\\sqrt", expand: "\\sqrt{}" }, // unchanged built-in - should be dropped
+            { trigger: "\\frac", expand: "\\dfrac{}{}" }, // overridden built-in - kept
+            { trigger: "\\myrule", expand: "\\myrule{}" }, // genuine custom - kept
+        ]);
+        plugin.loadData = async () => ({ rulesJson: legacyRulesJson });
+
+        await plugin.loadSettings();
+
+        const migrated = JSON.parse(plugin.settings.userRulesJson);
+        expect(migrated.some((r: { trigger: string }) => r.trigger === "\\sqrt")).toBe(false);
+        expect(migrated.some((r: { trigger: string }) => r.trigger === "\\myrule")).toBe(true);
+        expect(migrated.find((r: { trigger: string }) => r.trigger === "\\frac")?.expand).toBe("\\dfrac{}{}");
     });
 
     it("leaves userRulesJson at its default when there is no saved data", async () => {

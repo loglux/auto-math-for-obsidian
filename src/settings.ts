@@ -2,7 +2,17 @@ import { App, Notice, Setting, PluginSettingTab } from "obsidian";
 import type { Rule, ConflictGroup } from "./types";
 import { normalizeText } from "./utils";
 import { resolveRuleConflicts } from "./modals";
+import { DEFAULT_RULES } from "./rules";
 import type AutoMathPlugin from "./plugin";
+
+const DEFAULTS_BY_TRIGGER = new Map(DEFAULT_RULES.map((r) => [normalizeText(r.trigger), r]));
+
+type RuleKind = "tombstone" | "modified" | "custom";
+
+function classifyOverlayRule(r: Rule): RuleKind {
+    if (r.expand === "") return "tombstone";
+    return DEFAULTS_BY_TRIGGER.has(normalizeText(r.trigger)) ? "modified" : "custom";
+}
 
 export class AutoMathSettingsTab extends PluginSettingTab {
     plugin: AutoMathPlugin;
@@ -140,7 +150,11 @@ export class AutoMathSettingsTab extends PluginSettingTab {
 
         const getIssues = () => {
             const emptyTriggers = (work || []).filter((r) => !r.trigger.trim()).length;
-            const emptyExpands = (work || []).filter((r) => !r.expand.trim()).length;
+            // A blank expand is only a real issue if it isn't a valid tombstone
+            // (tombstones - which disable a built-in - are keyed on a known trigger).
+            const emptyExpands = (work || []).filter(
+                (r) => !r.expand.trim() && !DEFAULTS_BY_TRIGGER.has(normalizeText(r.trigger))
+            ).length;
             const counts = new Map<string, number>();
             for (const rule of work || []) {
                 const key = normalizeText(rule.trigger).trim();
@@ -177,10 +191,48 @@ export class AutoMathSettingsTab extends PluginSettingTab {
 
             if (!work || opts.reload) {
                 await this.plugin._loadExternalRules(true);
-                work = this.plugin._getRules().map((r) => ({ ...r }));
+                // Only your own additions/overrides/tombstones are editable here -
+                // untouched built-ins are shown separately, read from DEFAULT_RULES.
+                work = this.plugin._getOverlayRules().map((r) => ({ ...r }));
                 this.plugin._workRules = work;
                 isDirty = false;
             }
+
+            const overriddenTriggers = new Set(work.map((r) => normalizeText(r.trigger)));
+
+            new Setting(editorEl)
+                .setName("Built-in commands")
+                .setDesc("The live default pack. Disable one you don't want without touching the rest.")
+                .setHeading();
+
+            const builtinsList = editorEl.createDiv();
+            builtinsList.addClass("am-rules-list");
+
+            DEFAULT_RULES.forEach((rule) => {
+                if (overriddenTriggers.has(normalizeText(rule.trigger))) return;
+
+                const searchable = `${rule.trigger} ${rule.expand}`.toLowerCase();
+                if (filter && !searchable.includes(filter)) return;
+
+                const row = builtinsList.createDiv({ cls: "am-rule-row" });
+                new Setting(row)
+                    .setName(rule.trigger)
+                    .setDesc(rule.expand)
+                    .addButton((b) =>
+                        b.setButtonText("Disable").onClick(() => {
+                            if (!work) return;
+                            work.push({ trigger: rule.trigger, expand: "" });
+                            markDirty();
+                            void renderEditor();
+                        })
+                    );
+                row.createEl("hr");
+            });
+
+            new Setting(editorEl)
+                .setName("Your rules")
+                .setDesc("Overrides, additions, and disabled built-ins. This is what actually gets saved to your rules file.")
+                .setHeading();
 
             const list = editorEl.createDiv();
             list.addClass("am-rules-list");
@@ -191,6 +243,28 @@ export class AutoMathSettingsTab extends PluginSettingTab {
                     if (filter && !searchable.includes(filter)) return;
 
                     const row = list.createDiv({ cls: "am-rule-row" });
+                    const kind = classifyOverlayRule(rule);
+
+                    if (kind === "tombstone") {
+                        new Setting(row)
+                            .setName(`Disabled: ${rule.trigger}`)
+                            .setDesc("This built-in trigger is turned off.")
+                            .addButton((b) =>
+                                b.setButtonText("Re-enable").onClick(() => {
+                                    if (work) {
+                                        work.splice(idx, 1);
+                                        markDirty();
+                                        void renderEditor();
+                                    }
+                                })
+                            );
+                        row.createEl("hr");
+                        return;
+                    }
+
+                    const badge = row.createDiv();
+                    badge.setText(kind === "modified" ? "Modified built-in" : "Custom");
+                    badge.setAttr("style", "font-size: 0.8em; opacity: .7;");
 
                     new Setting(row)
                         .setName("Trigger")
@@ -255,7 +329,13 @@ export class AutoMathSettingsTab extends PluginSettingTab {
                             }
                             const trigger = r.trigger.trim();
                             const expand = r.expand.trim();
-                            if (!trigger || !expand) {
+                            if (!trigger) {
+                                removedEmpty++;
+                                continue;
+                            }
+                            // A blank expand is only meaningful as a tombstone that
+                            // disables a known built-in trigger - otherwise it's junk.
+                            if (!expand && !DEFAULTS_BY_TRIGGER.has(normalizeText(trigger))) {
                                 removedEmpty++;
                                 continue;
                             }
@@ -356,6 +436,37 @@ export class AutoMathSettingsTab extends PluginSettingTab {
                         isDirty = false;
                         new Notice("Changes discarded");
                         void renderEditor({ reload: true });
+                    })
+                );
+
+            new Setting(actions)
+                .setName("Copy your rules as JSON")
+                .setDesc("Copies only your additions/overrides/disabled built-ins - handy as a backup or to move to another vault.")
+                .addButton((b) =>
+                    b.setButtonText("Copy").onClick(async () => {
+                        const overlay = work ?? [];
+                        const text = JSON.stringify(overlay, null, 2);
+                        try {
+                            await navigator.clipboard.writeText(text);
+                            new Notice(`Copied ${overlay.length} rule(s) to clipboard`);
+                        } catch (e) {
+                            console.error("[Auto Math] clipboard copy failed", e);
+                            new Notice("Could not copy to clipboard (see console)");
+                        }
+                    })
+                );
+
+            new Setting(actions)
+                .setName("Reset to default math pack")
+                .setDesc("Clears all your customisations and disabled built-ins, restoring the pure built-in pack.")
+                .addButton((b) =>
+                    b.setButtonText("Reset").onClick(async () => {
+                        const ok = await this.plugin._resetToDefaults();
+                        this.plugin._workRules = null;
+                        work = null;
+                        isDirty = false;
+                        new Notice(ok ? "Reset to default math pack" : "Failed to reset (see console)");
+                        await renderEditor({ reload: true });
                     })
                 );
 

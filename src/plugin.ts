@@ -9,6 +9,8 @@ export default class AutoMathPlugin extends Plugin {
     settings: AutoMathSettings;
     statusEl: HTMLElement | null = null;
     private _rules: Rule[] = [];
+    /** The raw overlay (external rules.json if present, else userRulesJson) as last loaded. */
+    private _overlayRules: Rule[] = [];
     _workRules: Rule[] | null = null;
 
     async onload() {
@@ -145,9 +147,11 @@ export default class AutoMathPlugin extends Plugin {
     async _ensureRulesFile(): Promise<void> {
         const p = this.getFullRulesPath();
         if (!(await this._rulesFileExists(p))) {
+            // The external file is an overlay too, same as userRulesJson - seed it
+            // with just the user's existing customisations (if any), not a full
+            // copy of the built-in pack, so it stays a small, meaningful diff.
             const userRules = this._parseRulesText(this.settings.userRulesJson, false) ?? [];
-            const seed = this._mergeRuleLayers(DEFAULT_RULES, userRules);
-            const def = JSON.stringify(seed, null, 2) + "\n";
+            const def = JSON.stringify(userRules, null, 2) + "\n";
             const ok = await this._writeVaultFile(p, def);
             new Notice(
                 ok
@@ -169,42 +173,79 @@ export default class AutoMathPlugin extends Plugin {
         }
     }
 
+    /**
+     * The external rules.json (if present) and userRulesJson (fallback) are
+     * both just an overlay layered on top of the live built-in pack - never
+     * a full replacement. That way built-in triggers added in later
+     * versions always reach everyone, whichever overlay source is in use.
+     */
     async _loadExternalRules(showErrors: boolean): Promise<boolean> {
         const p = this.getFullRulesPath();
         const raw = await this._readVaultFile(p);
 
+        let overlay: Rule[] | null = null;
+
         if (raw && raw.trim()) {
             const parsed = this._parseRulesText(raw, showErrors);
-            if (parsed && parsed.length) {
-                this._rules = parsed;
-                if (this.settings.debug) console.debug("[Auto Math] loaded external rules", parsed);
-                return true;
+            if (parsed) {
+                overlay = parsed;
+                if (this.settings.debug) console.debug("[Auto Math] loaded external rule overlay", parsed);
+            } else if (showErrors) {
+                console.error("[Auto Math] external rules present but invalid at", p);
             }
-            if (showErrors) console.error("[Auto Math] external rules present but invalid at", p);
-        } else {
-            if (showErrors && this.settings.debug) {
-                console.debug("[Auto Math] external rules not found, using built-in pack");
-            }
+        } else if (showErrors && this.settings.debug) {
+            console.debug("[Auto Math] external rules not found, using userRulesJson overlay");
         }
 
-        const userRules = this._parseRulesText(this.settings.userRulesJson, showErrors) ?? [];
-        this._rules = this._mergeRuleLayers(DEFAULT_RULES, userRules);
+        if (overlay === null) {
+            overlay = this._parseRulesText(this.settings.userRulesJson, showErrors) ?? [];
+        }
 
-        if (this.settings.debug) console.debug("[Auto Math] loaded built-in + user rules", this._rules);
+        this._overlayRules = overlay;
+        this._rules = this._mergeRuleLayers(DEFAULT_RULES, overlay);
+
+        if (this.settings.debug) console.debug("[Auto Math] active rules", this._rules);
         return !!this._rules.length;
     }
 
     /**
      * Layer user rules on top of the built-in pack: a user entry with the
-     * same (normalised) trigger overrides the built-in one; any other user
-     * entry is added. Result is sorted longest-trigger-first, same as
-     * _sanitizeRules, so matching precedence stays correct.
+     * same (normalised) trigger overrides the built-in one; an overlay
+     * entry with an empty `expand` is a tombstone that hides the matching
+     * built-in trigger entirely (until that tombstone entry is removed).
+     * Result is sorted longest-trigger-first, same as _sanitizeRules, so
+     * matching precedence stays correct.
      */
     _mergeRuleLayers(base: Rule[], overlay: Rule[]): Rule[] {
-        const byTrigger = new Map<string, Rule>();
+        const byTrigger = new Map<string, Rule | null>();
         for (const r of base) byTrigger.set(normalizeText(r.trigger), r);
-        for (const r of overlay) byTrigger.set(normalizeText(r.trigger), r);
-        return Array.from(byTrigger.values()).sort((a, b) => b.trigger.length - a.trigger.length);
+        for (const r of overlay) {
+            byTrigger.set(normalizeText(r.trigger), r.expand === "" ? null : r);
+        }
+        return Array.from(byTrigger.values())
+            .filter((r): r is Rule => r !== null)
+            .sort((a, b) => b.trigger.length - a.trigger.length);
+    }
+
+    /** The raw overlay (your customisations/tombstones only, no built-ins). */
+    _getOverlayRules(): Rule[] {
+        return this._overlayRules || [];
+    }
+
+    /**
+     * Clear all customisations and go back to the pure built-in pack: empties
+     * the external rules.json (if any) and userRulesJson, then reloads.
+     */
+    async _resetToDefaults(): Promise<boolean> {
+        this.settings.userRulesJson = "[]";
+        await this.saveSettings();
+
+        const p = this.getFullRulesPath();
+        if (await this._rulesFileExists(p)) {
+            await this._writeVaultFile(p, "[]\n");
+        }
+
+        return this._loadExternalRules(true);
     }
 
     _parseRulesText(text: string, showErrors: boolean): Rule[] | null {
@@ -516,11 +557,18 @@ export default class AutoMathPlugin extends Plugin {
 
         // Migrate the pre-0.2.7 settings shape: `rulesJson` used to hold a
         // full snapshot of built-ins + user edits, which meant new built-in
-        // triggers never reached existing installs. Fold that old snapshot
-        // into the new user-only layer so nothing the user added is lost,
-        // while the built-in pack itself now always comes live from code.
+        // triggers never reached existing installs. Keep only entries that
+        // actually differ from (or don't exist in) the current built-in
+        // pack, so the migrated overlay stays a small, meaningful diff
+        // instead of a full duplicate of DEFAULT_RULES.
         if (data && typeof data.rulesJson === "string" && !("userRulesJson" in data)) {
-            this.settings.userRulesJson = data.rulesJson;
+            const legacy = this._parseRulesText(data.rulesJson, false) ?? [];
+            const defaultsByTrigger = new Map(DEFAULT_RULES.map((r) => [normalizeText(r.trigger), r]));
+            const overlay = legacy.filter((r) => {
+                const builtIn = defaultsByTrigger.get(normalizeText(r.trigger));
+                return !builtIn || builtIn.expand !== r.expand;
+            });
+            this.settings.userRulesJson = JSON.stringify(overlay, null, 2);
             await this.saveSettings();
         }
     }
