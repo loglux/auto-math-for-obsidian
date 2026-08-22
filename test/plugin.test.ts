@@ -227,3 +227,78 @@ describe("_sanitizeRules", () => {
         expect(plugin._sanitizeRules({})).toEqual([]);
     });
 });
+
+describe("_mergeRuleLayers", () => {
+    let plugin: AutoMathPlugin;
+
+    beforeEach(() => {
+        plugin = createPlugin();
+    });
+
+    it("keeps built-in rules the user hasn't touched", () => {
+        const merged = plugin._mergeRuleLayers(
+            [{ trigger: "\\frac", expand: "\\frac{}{}" }],
+            []
+        );
+        expect(merged).toEqual([{ trigger: "\\frac", expand: "\\frac{}{}" }]);
+    });
+
+    it("lets a user rule override a built-in one with the same trigger", () => {
+        const merged = plugin._mergeRuleLayers(
+            [{ trigger: "\\frac", expand: "\\frac{}{}" }],
+            [{ trigger: "\\frac", expand: "\\dfrac{}{}" }]
+        );
+        expect(merged).toEqual([{ trigger: "\\frac", expand: "\\dfrac{}{}" }]);
+    });
+
+    it("adds user rules that don't exist in the built-in pack", () => {
+        const merged = plugin._mergeRuleLayers(
+            [{ trigger: "\\frac", expand: "\\frac{}{}" }],
+            [{ trigger: "\\myrule", expand: "\\myrule{}" }]
+        );
+        expect(merged.map((r) => r.trigger).sort()).toEqual(["\\frac", "\\myrule"].sort());
+    });
+});
+
+describe("_loadExternalRules fallback (no external file)", () => {
+    it("merges built-in DEFAULT_RULES with the user layer, giving new built-ins for free", async () => {
+        const plugin = new AutoMathPlugin(undefined, { dir: "vault/.obsidian/plugins/auto-math" });
+        plugin.settings = {
+            ...DEFAULT_SETTINGS,
+            userRulesJson: JSON.stringify([
+                { trigger: "\\frac", expand: "\\dfrac{}{}" },
+                { trigger: "\\myrule", expand: "\\myrule{}" },
+            ]),
+        };
+
+        const ok = await plugin._loadExternalRules(false);
+        expect(ok).toBe(true);
+
+        const rules = plugin._getRules();
+        expect(rules.find((r) => r.trigger === "\\frac")?.expand).toBe("\\dfrac{}{}");
+        expect(rules.some((r) => r.trigger === "\\myrule")).toBe(true);
+        // A built-in that was never mentioned in the user layer is still present.
+        expect(rules.some((r) => r.trigger === "\\paren")).toBe(true);
+    });
+});
+
+describe("loadSettings migration", () => {
+    it("folds a pre-0.2.7 rulesJson snapshot into the new userRulesJson layer", async () => {
+        const plugin = new AutoMathPlugin(undefined, { dir: "vault/.obsidian/plugins/auto-math" });
+        const legacyRulesJson = JSON.stringify([{ trigger: "\\myrule", expand: "\\myrule{}" }]);
+        plugin.loadData = async () => ({ enabled: false, rulesJson: legacyRulesJson });
+
+        await plugin.loadSettings();
+
+        expect(plugin.settings.userRulesJson).toBe(legacyRulesJson);
+        expect(plugin.settings.enabled).toBe(false);
+    });
+
+    it("leaves userRulesJson at its default when there is no saved data", async () => {
+        const plugin = new AutoMathPlugin(undefined, { dir: "vault/.obsidian/plugins/auto-math" });
+
+        await plugin.loadSettings();
+
+        expect(plugin.settings.userRulesJson).toBe(DEFAULT_SETTINGS.userRulesJson);
+    });
+});

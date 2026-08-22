@@ -145,7 +145,9 @@ export default class AutoMathPlugin extends Plugin {
     async _ensureRulesFile(): Promise<void> {
         const p = this.getFullRulesPath();
         if (!(await this._rulesFileExists(p))) {
-            const def = JSON.stringify(DEFAULT_RULES, null, 2) + "\n";
+            const userRules = this._parseRulesText(this.settings.userRulesJson, false) ?? [];
+            const seed = this._mergeRuleLayers(DEFAULT_RULES, userRules);
+            const def = JSON.stringify(seed, null, 2) + "\n";
             const ok = await this._writeVaultFile(p, def);
             new Notice(
                 ok
@@ -185,11 +187,24 @@ export default class AutoMathPlugin extends Plugin {
             }
         }
 
-        const fallback = this._parseRulesText(this.settings.rulesJson, showErrors);
-        this._rules = Array.isArray(fallback) ? fallback : [];
+        const userRules = this._parseRulesText(this.settings.userRulesJson, showErrors) ?? [];
+        this._rules = this._mergeRuleLayers(DEFAULT_RULES, userRules);
 
-        if (this.settings.debug) console.debug("[Auto Math] loaded fallback rules", this._rules);
+        if (this.settings.debug) console.debug("[Auto Math] loaded built-in + user rules", this._rules);
         return !!this._rules.length;
+    }
+
+    /**
+     * Layer user rules on top of the built-in pack: a user entry with the
+     * same (normalised) trigger overrides the built-in one; any other user
+     * entry is added. Result is sorted longest-trigger-first, same as
+     * _sanitizeRules, so matching precedence stays correct.
+     */
+    _mergeRuleLayers(base: Rule[], overlay: Rule[]): Rule[] {
+        const byTrigger = new Map<string, Rule>();
+        for (const r of base) byTrigger.set(normalizeText(r.trigger), r);
+        for (const r of overlay) byTrigger.set(normalizeText(r.trigger), r);
+        return Array.from(byTrigger.values()).sort((a, b) => b.trigger.length - a.trigger.length);
     }
 
     _parseRulesText(text: string, showErrors: boolean): Rule[] | null {
@@ -492,12 +507,22 @@ export default class AutoMathPlugin extends Plugin {
     }
 
     async loadSettings() {
-        const data = (await this.loadData()) as AutoMathSettings | null;
+        const data = (await this.loadData()) as (Partial<AutoMathSettings> & { rulesJson?: string }) | null;
 
         this.settings = {
             ...DEFAULT_SETTINGS,
             ...(data ?? {}),
         };
+
+        // Migrate the pre-0.2.7 settings shape: `rulesJson` used to hold a
+        // full snapshot of built-ins + user edits, which meant new built-in
+        // triggers never reached existing installs. Fold that old snapshot
+        // into the new user-only layer so nothing the user added is lost,
+        // while the built-in pack itself now always comes live from code.
+        if (data && typeof data.rulesJson === "string" && !("userRulesJson" in data)) {
+            this.settings.userRulesJson = data.rulesJson;
+            await this.saveSettings();
+        }
     }
 
     async saveSettings() {

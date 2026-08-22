@@ -40,5 +40,11 @@ export interface AutoMathSettings {
     debug: boolean;
     smartLimits: boolean;
     maxScanLines: number;
-    rulesJson: string;
+    /**
+     * User-only rule additions/overrides, layered on top of the built-in
+     * DEFAULT_RULES pack at runtime. Does NOT contain a copy of the
+     * built-ins, so newly added built-in triggers always show up for
+     * everyone without any migration step.
+     */
+    userRulesJson: string;
 }
