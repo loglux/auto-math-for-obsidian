@@ -21,7 +21,7 @@ It's like a mini _LaTeX auto-completion engine_ — lightweight, fast, and entir
 
 - 🔹 **Live reload** – changes in the rules file are applied immediately, no restart required.
 
-- 🔹 **Built-in math pack** – includes 38 essential LaTeX commands.
+- 🔹 **Built-in math pack** – includes 48 essential LaTeX commands.
 
 - 🔹 **Custom Rules Editor** – edit triggers and expansions directly inside Obsidian settings.
 
@@ -62,7 +62,7 @@ For detailed documentation, tutorials, and examples, visit the **[Auto Math Wiki
 
 ### 🧮 Default Rule Pack
 
-Auto Math v0.2.5 comes preloaded with 38 essential triggers:
+Auto Math v0.2.6 comes preloaded with 48 essential triggers:
 
 #### Basic Commands
 
@@ -81,11 +81,15 @@ Auto Math v0.2.5 comes preloaded with 38 essential triggers:
 |`\pow`|`{}^{}`|
 |`\abs`|`\left\|{}\right\|`|
 |`\norm`|`\left\\|{}\right\\|`|
+|`\paren`|`\left({}\right)`|
+|`\brack`|`\left[{}\right]`|
+|`\brace`|`\left\{{}\right\}`|
 |`\vec`|`\vec{}`|
 |`\hat`|`\hat{}`|
 |`\bar`|`\bar{}`|
 |`\overline`|`\overline{}`|
 |`\underline`|`\underline{}`|
+|`\substack`|`\substack{}`|
 |`^^`|`^{}`|
 |`__`|`_{}`|
 
@@ -121,7 +125,12 @@ Auto Math v0.2.5 comes preloaded with 38 essential triggers:
 |`\matrix`|`\begin{matrix}...\end{matrix}`|Matrix (no brackets)|
 |`\pmatrix`|`\begin{pmatrix}...\end{pmatrix}`|Matrix with ( )|
 |`\bmatrix`|`\begin{bmatrix}...\end{bmatrix}`|Matrix with [ ]|
+|`\vmatrix`|`\begin{vmatrix}...\end{vmatrix}`|Matrix with \| \| (determinant)|
+|`\Vmatrix`|`\begin{Vmatrix}...\end{Vmatrix}`|Matrix with ‖ ‖ (double bars)|
+|`\smallmatrix`|`\begin{smallmatrix}...\end{smallmatrix}`|Compact matrix for inline math|
 |`\split`|`\begin{split}...\end{split}`|Split equations|
+|`\multline`|`\begin{multline}...\end{multline}`|Long equation, first/last line aligned to margins|
+|`\alignat`|`\begin{alignat}{}...\end{alignat}`|Aligned equations with explicit column count|
 
 ---
 
