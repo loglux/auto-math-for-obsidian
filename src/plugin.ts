@@ -210,24 +210,18 @@ export default class AutoMathPlugin extends Plugin {
 
     /**
      * Layer user rules on top of the built-in pack: a user entry with the
-     * same (normalised) trigger overrides the built-in one; an overlay
-     * entry with an empty `expand` is a tombstone that hides the matching
-     * built-in trigger entirely (until that tombstone entry is removed).
-     * Result is sorted longest-trigger-first, same as _sanitizeRules, so
-     * matching precedence stays correct.
+     * same (normalised) trigger overrides the built-in one; any other user
+     * entry is added. Result is sorted longest-trigger-first, same as
+     * _sanitizeRules, so matching precedence stays correct.
      */
     _mergeRuleLayers(base: Rule[], overlay: Rule[]): Rule[] {
-        const byTrigger = new Map<string, Rule | null>();
+        const byTrigger = new Map<string, Rule>();
         for (const r of base) byTrigger.set(normalizeText(r.trigger), r);
-        for (const r of overlay) {
-            byTrigger.set(normalizeText(r.trigger), r.expand === "" ? null : r);
-        }
-        return Array.from(byTrigger.values())
-            .filter((r): r is Rule => r !== null)
-            .sort((a, b) => b.trigger.length - a.trigger.length);
+        for (const r of overlay) byTrigger.set(normalizeText(r.trigger), r);
+        return Array.from(byTrigger.values()).sort((a, b) => b.trigger.length - a.trigger.length);
     }
 
-    /** The raw overlay (your customisations/tombstones only, no built-ins). */
+    /** The raw overlay (your customisations only, no built-ins). */
     _getOverlayRules(): Rule[] {
         return this._overlayRules || [];
     }

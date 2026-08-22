@@ -7,11 +7,8 @@ import type AutoMathPlugin from "./plugin";
 
 const DEFAULTS_BY_TRIGGER = new Map(DEFAULT_RULES.map((r) => [normalizeText(r.trigger), r]));
 
-type RuleKind = "tombstone" | "modified" | "custom";
-
-function classifyOverlayRule(r: Rule): RuleKind {
-    if (r.expand === "") return "tombstone";
-    return DEFAULTS_BY_TRIGGER.has(normalizeText(r.trigger)) ? "modified" : "custom";
+function isBuiltInTrigger(r: Rule): boolean {
+    return DEFAULTS_BY_TRIGGER.has(normalizeText(r.trigger));
 }
 
 export class AutoMathSettingsTab extends PluginSettingTab {
@@ -108,7 +105,7 @@ export class AutoMathSettingsTab extends PluginSettingTab {
 
         const help = containerEl.createDiv();
         help.setText(
-            "Edit your rules below. Use double backslashes \\\\ in triggers/expansions. '|' marks cursor; '{}' places cursor inside the first braces."
+            "Edit your rules below. Use double backslashes \\\\ in triggers/expansions. '|' marks cursor; '{}' places cursor inside the first braces. Give a rule the same trigger as a built-in to override it."
         );
         help.setAttr("style", "margin: 6px 0; opacity: .8;");
 
@@ -150,11 +147,7 @@ export class AutoMathSettingsTab extends PluginSettingTab {
 
         const getIssues = () => {
             const emptyTriggers = (work || []).filter((r) => !r.trigger.trim()).length;
-            // A blank expand is only a real issue if it isn't a valid tombstone
-            // (tombstones - which disable a built-in - are keyed on a known trigger).
-            const emptyExpands = (work || []).filter(
-                (r) => !r.expand.trim() && !DEFAULTS_BY_TRIGGER.has(normalizeText(r.trigger))
-            ).length;
+            const emptyExpands = (work || []).filter((r) => !r.expand.trim()).length;
             const counts = new Map<string, number>();
             for (const rule of work || []) {
                 const key = normalizeText(rule.trigger).trim();
@@ -191,47 +184,16 @@ export class AutoMathSettingsTab extends PluginSettingTab {
 
             if (!work || opts.reload) {
                 await this.plugin._loadExternalRules(true);
-                // Only your own additions/overrides/tombstones are editable here -
-                // untouched built-ins are shown separately, read from DEFAULT_RULES.
+                // Only your own additions/overrides are editable here - the rest
+                // of the built-in pack is always active and doesn't need listing.
                 work = this.plugin._getOverlayRules().map((r) => ({ ...r }));
                 this.plugin._workRules = work;
                 isDirty = false;
             }
 
-            const overriddenTriggers = new Set(work.map((r) => normalizeText(r.trigger)));
-
-            new Setting(editorEl)
-                .setName("Built-in commands")
-                .setDesc("The live default pack. Disable one you don't want without touching the rest.")
-                .setHeading();
-
-            const builtinsList = editorEl.createDiv();
-            builtinsList.addClass("am-rules-list");
-
-            DEFAULT_RULES.forEach((rule) => {
-                if (overriddenTriggers.has(normalizeText(rule.trigger))) return;
-
-                const searchable = `${rule.trigger} ${rule.expand}`.toLowerCase();
-                if (filter && !searchable.includes(filter)) return;
-
-                const row = builtinsList.createDiv({ cls: "am-rule-row" });
-                new Setting(row)
-                    .setName(rule.trigger)
-                    .setDesc(rule.expand)
-                    .addButton((b) =>
-                        b.setButtonText("Disable").onClick(() => {
-                            if (!work) return;
-                            work.push({ trigger: rule.trigger, expand: "" });
-                            markDirty();
-                            void renderEditor();
-                        })
-                    );
-                row.createEl("hr");
-            });
-
             new Setting(editorEl)
                 .setName("Your rules")
-                .setDesc("Overrides, additions, and disabled built-ins. This is what actually gets saved to your rules file.")
+                .setDesc("Overrides and additions on top of the built-in pack. This is what actually gets saved to your rules file.")
                 .setHeading();
 
             const list = editorEl.createDiv();
@@ -243,27 +205,9 @@ export class AutoMathSettingsTab extends PluginSettingTab {
                     if (filter && !searchable.includes(filter)) return;
 
                     const row = list.createDiv({ cls: "am-rule-row" });
-                    const kind = classifyOverlayRule(rule);
-
-                    if (kind === "tombstone") {
-                        new Setting(row)
-                            .setName(`Disabled: ${rule.trigger}`)
-                            .setDesc("This built-in trigger is turned off.")
-                            .addButton((b) =>
-                                b.setButtonText("Re-enable").onClick(() => {
-                                    if (work) {
-                                        work.splice(idx, 1);
-                                        markDirty();
-                                        void renderEditor();
-                                    }
-                                })
-                            );
-                        row.createEl("hr");
-                        return;
-                    }
 
                     const badge = row.createDiv();
-                    badge.setText(kind === "modified" ? "Modified built-in" : "Custom");
+                    badge.setText(isBuiltInTrigger(rule) ? "Modified built-in" : "Custom");
                     badge.setAttr("style", "font-size: 0.8em; opacity: .7;");
 
                     new Setting(row)
@@ -329,13 +273,7 @@ export class AutoMathSettingsTab extends PluginSettingTab {
                             }
                             const trigger = r.trigger.trim();
                             const expand = r.expand.trim();
-                            if (!trigger) {
-                                removedEmpty++;
-                                continue;
-                            }
-                            // A blank expand is only meaningful as a tombstone that
-                            // disables a known built-in trigger - otherwise it's junk.
-                            if (!expand && !DEFAULTS_BY_TRIGGER.has(normalizeText(trigger))) {
+                            if (!trigger || !expand) {
                                 removedEmpty++;
                                 continue;
                             }
@@ -441,7 +379,7 @@ export class AutoMathSettingsTab extends PluginSettingTab {
 
             new Setting(actions)
                 .setName("Copy your rules as JSON")
-                .setDesc("Copies only your additions/overrides/disabled built-ins - handy as a backup or to move to another vault.")
+                .setDesc("Copies only your additions/overrides - handy as a backup or to move to another vault.")
                 .addButton((b) =>
                     b.setButtonText("Copy").onClick(async () => {
                         const overlay = work ?? [];
@@ -458,7 +396,7 @@ export class AutoMathSettingsTab extends PluginSettingTab {
 
             new Setting(actions)
                 .setName("Reset to default math pack")
-                .setDesc("Clears all your customisations and disabled built-ins, restoring the pure built-in pack.")
+                .setDesc("Clears all your customisations, restoring the pure built-in pack.")
                 .addButton((b) =>
                     b.setButtonText("Reset").onClick(async () => {
                         const ok = await this.plugin._resetToDefaults();

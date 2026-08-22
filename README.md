@@ -17,7 +17,7 @@ It's like a mini _LaTeX auto-completion engine_ — lightweight, fast, and entir
 
 - 🔹 **Multiline templates** – environments like `\align` expand across multiple lines with proper formatting.
 
-- 🔹 **Custom rule file** – all expansions are stored in `.obsidian/plugins/auto-math/rules.json` (user-editable).
+- 🔹 **Custom rule file** – your additions and overrides live in `.obsidian/plugins/auto-math/rules.json` (user-editable), layered on top of the built-in pack — you only need to list what you've changed, not the whole pack.
 
 - 🔹 **Live reload** – changes in the rules file are applied immediately, no restart required.
 
@@ -62,7 +62,7 @@ For detailed documentation, tutorials, and examples, visit the **[Auto Math Wiki
 
 ### 🧮 Default Rule Pack
 
-Auto Math v0.2.6 comes preloaded with 48 essential triggers:
+Auto Math v0.2.9 comes preloaded with 48 essential triggers:
 
 #### Basic Commands
 
@@ -167,11 +167,13 @@ Open **Settings → Auto Math** to customise:
 
 - **Debug logs** – show extra information in the developer console.
 
-- **Custom Rules Editor** – view, add, delete, filter, sort, and edit your rules interactively.
+- **Custom Rules Editor** – "Your rules" lists only your own additions/overrides on top of the built-in pack (badged as *Custom* or *Modified built-in*). Give a rule the same trigger as a built-in to override it.
 
-- **Save rules to file** – writes changes to the JSON file immediately.
+- **Save rules to file** – writes your overlay (not the whole pack) to the JSON file immediately.
 
-- **Reset to default math pack** – restores the built-in default rule set.
+- **Copy your rules as JSON** – copies just your overlay to the clipboard, for backup or moving to another vault.
+
+- **Reset to default math pack** – clears all customisations, back to a clean install.
 
 ---
 
@@ -236,7 +238,7 @@ $$
 
 ### 💡 Customisation Example
 
-If you'd like to add your own expansions, open `auto-math.rules.json` and add entries like:
+`rules.json` is an **overlay** on top of the built-in pack, not a full replacement — list only what you want to add or change, and every built-in trigger you didn't mention stays active as-is (including any added in a later update).
 
 ```json
 [
@@ -246,7 +248,9 @@ If you'd like to add your own expansions, open `auto-math.rules.json` and add en
 ]
 ```
 
-Then click **Reload rules now** — your new triggers will be active instantly.
+The `\bmatrix` entry above **overrides** the built-in template (same trigger, different expansion). Adding a new trigger like `\ceil` just extends the pack.
+
+Then click **Reload rules now** — your changes are active instantly.
 
 ---
 
