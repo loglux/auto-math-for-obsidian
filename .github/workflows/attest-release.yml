@@ -1,0 +1,42 @@
+name: Attest release build
+
+# Runs after a release is published (releases are still created manually with
+# hand-reviewed notes). Rebuilds main.js from source at the release tag in a
+# clean CI environment, attaches a signed GitHub build-provenance attestation
+# for it, and replaces the manually uploaded copy with the attested build so
+# the two are guaranteed to match.
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+  id-token: write
+  attestations: write
+
+jobs:
+  attest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.release.tag_name }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - run: npm ci --legacy-peer-deps
+
+      - run: npm run build
+
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: main.js
+
+      - name: Replace release asset with the attested build
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release upload "${{ github.event.release.tag_name }}" main.js --clobber

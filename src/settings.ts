@@ -1,4 +1,5 @@
 import { App, Notice, Setting, PluginSettingTab } from "obsidian";
+import type { SettingDefinitionItem } from "obsidian";
 import type { Rule, ConflictGroup } from "./types";
 import { normalizeText } from "./utils";
 import { resolveRuleConflicts } from "./modals";
@@ -19,11 +20,75 @@ export class AutoMathSettingsTab extends PluginSettingTab {
         this.plugin = plugin;
     }
 
+    /**
+     * Declarative entry point (Obsidian 1.13.0+): makes every row searchable
+     * from the main settings search. Each row reuses the same configure/render
+     * logic as display(), so behaviour is identical either way.
+     */
+    getSettingDefinitions(): SettingDefinitionItem[] {
+        return [
+            {
+                name: "Enabled",
+                desc: "Turn the plugin on or off.",
+                render: (setting) => this._configureEnabledToggle(setting),
+            },
+            {
+                name: "Rules file path",
+                desc: `Path relative to plugin folder (default: rules.json). Full path: ${this.plugin.getFullRulesPath()}`,
+                render: (setting) => this._configureRulesPathField(setting),
+            },
+            {
+                name: "Reload rules now",
+                desc: "Force reload from the external file and validate JSON",
+                render: (setting) => this._configureReloadButton(setting),
+            },
+            {
+                name: "Create / open rules file",
+                desc: "Create external rules file if missing and open it in a new tab",
+                render: (setting) => this._configureCreateOpenButton(setting),
+            },
+            {
+                name: "Debug logs",
+                desc: "Log rule matches and loading to the developer console",
+                render: (setting) => this._configureDebugToggle(setting),
+            },
+            {
+                name: "Smart limits",
+                desc: "Automatically choose \\int/\\int\\limits when expanding inside $...$ or $$...$$.",
+                render: (setting) => this._configureSmartLimitsToggle(setting),
+            },
+            {
+                name: "Custom rules editor",
+                desc: "Manage overrides and additions on top of the built-in math pack.",
+                render: (setting) => {
+                    setting.settingEl.empty();
+                    setting.settingEl.removeClass("setting-item");
+                    this._renderRulesEditor(setting.settingEl);
+                },
+            },
+        ];
+    }
+
+    /**
+     * Imperative fallback for Obsidian versions older than 1.13.0, where
+     * getSettingDefinitions() does not exist and isn't called.
+     */
     display(): void {
         const { containerEl } = this;
         containerEl.empty();
 
-        new Setting(containerEl)
+        this._configureEnabledToggle(new Setting(containerEl));
+        this._configureRulesPathField(new Setting(containerEl));
+        this._configureReloadButton(new Setting(containerEl));
+        this._configureCreateOpenButton(new Setting(containerEl));
+        this._configureDebugToggle(new Setting(containerEl));
+        this._configureSmartLimitsToggle(new Setting(containerEl));
+
+        this._renderRulesEditor(containerEl);
+    }
+
+    private _configureEnabledToggle(setting: Setting): void {
+        setting
             .setName("Enabled")
             .setDesc("Turn the plugin on or off.")
             .addToggle((t) =>
@@ -35,8 +100,10 @@ export class AutoMathSettingsTab extends PluginSettingTab {
                         this.plugin._renderStatus();
                     })
             );
+    }
 
-        new Setting(containerEl)
+    private _configureRulesPathField(setting: Setting): void {
+        setting
             .setName("Rules file path")
             .setDesc(
                 `Path relative to plugin folder (default: rules.json). Full path: ${this.plugin.getFullRulesPath()}`
@@ -50,8 +117,10 @@ export class AutoMathSettingsTab extends PluginSettingTab {
                         await this.plugin.saveSettings();
                     })
             );
+    }
 
-        new Setting(containerEl)
+    private _configureReloadButton(setting: Setting): void {
+        setting
             .setName("Reload rules now")
             .setDesc("Force reload from the external file and validate JSON")
             .addButton((b) =>
@@ -64,8 +133,10 @@ export class AutoMathSettingsTab extends PluginSettingTab {
                     );
                 })
             );
+    }
 
-        new Setting(containerEl)
+    private _configureCreateOpenButton(setting: Setting): void {
+        setting
             .setName("Create / open rules file")
             .setDesc("Create external rules file if missing and open it in a new tab")
             .addButton((b) =>
@@ -74,8 +145,10 @@ export class AutoMathSettingsTab extends PluginSettingTab {
                     await this.plugin._openRulesFile();
                 })
             );
+    }
 
-        new Setting(containerEl)
+    private _configureDebugToggle(setting: Setting): void {
+        setting
             .setName("Debug logs")
             .setDesc("Log rule matches and loading to the developer console")
             .addToggle((t) =>
@@ -86,8 +159,10 @@ export class AutoMathSettingsTab extends PluginSettingTab {
                         await this.plugin.saveSettings();
                     })
             );
+    }
 
-        new Setting(containerEl)
+    private _configureSmartLimitsToggle(setting: Setting): void {
+        setting
             .setName("Smart limits")
             .setDesc(
                 "Automatically choose \\int/\\int\\limits when expanding inside $...$ or $$...$$."
@@ -100,7 +175,9 @@ export class AutoMathSettingsTab extends PluginSettingTab {
                         await this.plugin.saveSettings();
                     })
             );
+    }
 
+    private _renderRulesEditor(containerEl: HTMLElement): void {
         new Setting(containerEl).setName("Custom rules editor").setHeading();
 
         const help = containerEl.createDiv();
