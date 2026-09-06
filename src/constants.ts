@@ -28,5 +28,6 @@ export const DEFAULT_SETTINGS: AutoMathSettings = {
     debug: false,
     smartLimits: false, // disabled by default - enable in settings if needed
     maxScanLines: 50, // maximum lines to scan for multiline $$...$$ blocks
+    enableMaximaConverter: false, // experimental - off by default
     userRulesJson: "[]",
 };

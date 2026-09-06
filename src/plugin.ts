@@ -79,6 +79,21 @@ export default class AutoMathPlugin extends Plugin {
         this._registerRulesWatcher();
 
         this.registerEvent(
+            this.app.workspace.on("editor-menu", (menu, editor) => {
+                if (!this.settings.enableMaximaConverter) return;
+                if (!editor.getSelection()) return;
+                menu.addItem((item) =>
+                    item
+                        .setTitle("Copy as Maxima (beta)")
+                        .setIcon("sigma")
+                        .onClick(() => {
+                            new Notice("Maxima converter is not implemented yet");
+                        })
+                );
+            })
+        );
+
+        this.registerEvent(
             this.app.workspace.on("editor-change", (editor: Editor) => {
                 if (!this.settings.enabled) return;
                 if (!editor) return;

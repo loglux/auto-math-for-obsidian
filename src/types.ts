@@ -41,6 +41,11 @@ export interface AutoMathSettings {
     smartLimits: boolean;
     maxScanLines: number;
     /**
+     * Experimental: adds a "Copy as Maxima" item to the editor context menu
+     * for the current selection. Off by default.
+     */
+    enableMaximaConverter: boolean;
+    /**
      * User-only rule additions/overrides, layered on top of the built-in
      * DEFAULT_RULES pack at runtime. Does NOT contain a copy of the
      * built-ins, so newly added built-in triggers always show up for

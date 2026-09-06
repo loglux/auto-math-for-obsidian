@@ -58,6 +58,11 @@ export class AutoMathSettingsTab extends PluginSettingTab {
                 render: (setting) => this._configureSmartLimitsToggle(setting),
             },
             {
+                name: "Maxima converter (beta)",
+                desc: "Adds a \"Copy as Maxima\" item to the editor's right-click menu when text is selected. Experimental - conversion logic is not implemented yet.",
+                render: (setting) => this._configureMaximaConverterToggle(setting),
+            },
+            {
                 name: "Custom rules editor",
                 desc: "Manage overrides and additions on top of the built-in math pack.",
                 render: (setting) => {
@@ -83,6 +88,7 @@ export class AutoMathSettingsTab extends PluginSettingTab {
         this._configureCreateOpenButton(new Setting(containerEl));
         this._configureDebugToggle(new Setting(containerEl));
         this._configureSmartLimitsToggle(new Setting(containerEl));
+        this._configureMaximaConverterToggle(new Setting(containerEl));
 
         this._renderRulesEditor(containerEl);
     }
@@ -172,6 +178,22 @@ export class AutoMathSettingsTab extends PluginSettingTab {
                     .setValue(this.plugin.settings.smartLimits)
                     .onChange(async (v) => {
                         this.plugin.settings.smartLimits = v;
+                        await this.plugin.saveSettings();
+                    })
+            );
+    }
+
+    private _configureMaximaConverterToggle(setting: Setting): void {
+        setting
+            .setName("Maxima converter (beta)")
+            .setDesc(
+                "Adds a \"Copy as Maxima\" item to the editor's right-click menu when text is selected. Experimental - conversion logic is not implemented yet."
+            )
+            .addToggle((t) =>
+                t
+                    .setValue(this.plugin.settings.enableMaximaConverter)
+                    .onChange(async (v) => {
+                        this.plugin.settings.enableMaximaConverter = v;
                         await this.plugin.saveSettings();
                     })
             );
