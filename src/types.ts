@@ -46,6 +46,11 @@ export interface AutoMathSettings {
      */
     enableMaximaConverter: boolean;
     /**
+     * Experimental: typing \polylongdiv{dividend}{divisor} auto-expands into
+     * a computed, step-by-step polynomial long division. Off by default.
+     */
+    enablePolyLongDivision: boolean;
+    /**
      * User-only rule additions/overrides, layered on top of the built-in
      * DEFAULT_RULES pack at runtime. Does NOT contain a copy of the
      * built-ins, so newly added built-in triggers always show up for

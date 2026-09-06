@@ -111,6 +111,9 @@ export default class AutoMathPlugin extends Plugin {
                 } catch (e) {
                     console.error("[Auto Math] expand error", e);
                 }
+                if (this.settings.enablePolyLongDivision) {
+                    void this._maybeComputePolyLongDivision(editor);
+                }
             })
         );
 
@@ -471,6 +474,39 @@ export default class AutoMathPlugin extends Plugin {
             }
 
             return;
+        }
+    }
+
+    /**
+     * Computed trigger: typing \polylongdiv{dividend}{divisor} (matching the
+     * syntax of the real LaTeX `polynom` package, which Obsidian's MathJax
+     * cannot execute) replaces it with a locally-computed, step-by-step
+     * division rendered as a plain amsmath array.
+     */
+    async _maybeComputePolyLongDivision(editor: Editor): Promise<void> {
+        const cursor = editor.getCursor();
+        const lineText = editor.getLine(cursor.line);
+        if (cursor.ch === 0 || lineText[cursor.ch - 1] !== "}") return;
+
+        const upto = normalizeText(lineText.slice(0, cursor.ch));
+        const match = /\\polylongdiv\{([^{}]*)\}\{([^{}]*)\}$/.exec(upto);
+        if (!match) return;
+
+        const [full, dividend, divisor] = match;
+        const start = cursor.ch - full.length;
+        const before = lineText.slice(0, start);
+        const after = lineText.slice(cursor.ch);
+
+        try {
+            const { computePolyLongDivisionLatex } = await import("./poly-division");
+            const expanded = computePolyLongDivisionLatex(dividend, divisor);
+            this._expandMultiline(editor, cursor, before, after, expanded);
+            if (this.settings.debug) {
+                console.debug("[Auto Math] computed polynomial long division", dividend, divisor);
+            }
+        } catch (e) {
+            console.error("[Auto Math] polynomial long division failed", e);
+            new Notice("Could not compute polynomial long division (see console)");
         }
     }
 

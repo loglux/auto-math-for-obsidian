@@ -63,6 +63,11 @@ export class AutoMathSettingsTab extends PluginSettingTab {
                 render: (setting) => this._configureMaximaConverterToggle(setting),
             },
             {
+                name: "Polynomial long division (beta)",
+                desc: 'Typing \\polylongdiv{dividend}{divisor} (e.g. \\polylongdiv{x^3+x^2-1}{x-1}) auto-expands into a computed, step-by-step division. Experimental - single-variable polynomials only.',
+                render: (setting) => this._configurePolyLongDivisionToggle(setting),
+            },
+            {
                 name: "Custom rules editor",
                 desc: "Manage overrides and additions on top of the built-in math pack.",
                 render: (setting) => {
@@ -89,6 +94,7 @@ export class AutoMathSettingsTab extends PluginSettingTab {
         this._configureDebugToggle(new Setting(containerEl));
         this._configureSmartLimitsToggle(new Setting(containerEl));
         this._configureMaximaConverterToggle(new Setting(containerEl));
+        this._configurePolyLongDivisionToggle(new Setting(containerEl));
 
         this._renderRulesEditor(containerEl);
     }
@@ -194,6 +200,22 @@ export class AutoMathSettingsTab extends PluginSettingTab {
                     .setValue(this.plugin.settings.enableMaximaConverter)
                     .onChange(async (v) => {
                         this.plugin.settings.enableMaximaConverter = v;
+                        await this.plugin.saveSettings();
+                    })
+            );
+    }
+
+    private _configurePolyLongDivisionToggle(setting: Setting): void {
+        setting
+            .setName("Polynomial long division (beta)")
+            .setDesc(
+                'Typing \\polylongdiv{dividend}{divisor} (e.g. \\polylongdiv{x^3+x^2-1}{x-1}) auto-expands into a computed, step-by-step division. Experimental - single-variable polynomials only.'
+            )
+            .addToggle((t) =>
+                t
+                    .setValue(this.plugin.settings.enablePolyLongDivision)
+                    .onChange(async (v) => {
+                        this.plugin.settings.enablePolyLongDivision = v;
                         await this.plugin.saveSettings();
                     })
             );
