@@ -59,7 +59,7 @@ export class AutoMathSettingsTab extends PluginSettingTab {
             },
             {
                 name: "Maxima converter (beta)",
-                desc: "Adds a \"Copy as Maxima\" item to the editor's right-click menu when text is selected. Experimental - conversion logic is not implemented yet.",
+                desc: "Adds a \"Copy as Maxima\" item to the editor's right-click menu when text is selected. Experimental - covers common expressions (fractions, roots, trig, integrals, sums, limits); complex or unusual LaTeX may not convert cleanly.",
                 render: (setting) => this._configureMaximaConverterToggle(setting),
             },
             {
@@ -187,7 +187,7 @@ export class AutoMathSettingsTab extends PluginSettingTab {
         setting
             .setName("Maxima converter (beta)")
             .setDesc(
-                "Adds a \"Copy as Maxima\" item to the editor's right-click menu when text is selected. Experimental - conversion logic is not implemented yet."
+                "Adds a \"Copy as Maxima\" item to the editor's right-click menu when text is selected. Experimental - covers common expressions (fractions, roots, trig, integrals, sums, limits); complex or unusual LaTeX may not convert cleanly."
             )
             .addToggle((t) =>
                 t

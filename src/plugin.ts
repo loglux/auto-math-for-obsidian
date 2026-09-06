@@ -82,12 +82,21 @@ export default class AutoMathPlugin extends Plugin {
             this.app.workspace.on("editor-menu", (menu, editor) => {
                 if (!this.settings.enableMaximaConverter) return;
                 if (!editor.getSelection()) return;
+                const selection = editor.getSelection();
                 menu.addItem((item) =>
                     item
                         .setTitle("Copy as Maxima (beta)")
                         .setIcon("sigma")
-                        .onClick(() => {
-                            new Notice("Maxima converter is not implemented yet");
+                        .onClick(async () => {
+                            try {
+                                const { latexToMaxima } = await import("./maxima");
+                                const { showMaximaResult } = await import("./modals");
+                                const converted = latexToMaxima(selection);
+                                showMaximaResult(this.app, selection, converted);
+                            } catch (e) {
+                                console.error("[Auto Math] Maxima conversion failed", e);
+                                new Notice("Could not convert to Maxima (see console)");
+                            }
                         })
                 );
             })

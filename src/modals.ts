@@ -88,3 +88,51 @@ export function resolveRuleConflicts(app: App, groups: ConflictGroup[]): Promise
     const modal = new ConflictResolutionModal(app, groups);
     return modal.openAndWait();
 }
+
+/**
+ * Shows the LaTeX -> Maxima conversion result with a copy-to-clipboard action,
+ * so the user can eyeball it before pasting it into Maxima.
+ */
+export class MaximaResultModal extends Modal {
+    private readonly original: string;
+    private readonly converted: string;
+
+    constructor(app: App, original: string, converted: string) {
+        super(app);
+        this.original = original;
+        this.converted = converted;
+    }
+
+    onOpen() {
+        const { contentEl } = this;
+        contentEl.empty();
+
+        contentEl.createEl("h2", { text: "Copy as Maxima" });
+
+        contentEl.createEl("p", { text: "LaTeX", cls: "am-maxima-label" });
+        const original = contentEl.createEl("pre");
+        original.setText(this.original);
+
+        contentEl.createEl("p", { text: "Maxima", cls: "am-maxima-label" });
+        const converted = contentEl.createEl("pre");
+        converted.setText(this.converted);
+
+        new Setting(contentEl).addButton((b) =>
+            b
+                .setButtonText("Copy")
+                .setCta()
+                .onClick(async () => {
+                    await navigator.clipboard.writeText(this.converted);
+                    this.close();
+                })
+        );
+    }
+
+    onClose() {
+        this.contentEl.empty();
+    }
+}
+
+export function showMaximaResult(app: App, original: string, converted: string): void {
+    new MaximaResultModal(app, original, converted).open();
+}
