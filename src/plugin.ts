@@ -2,7 +2,7 @@ import { Plugin, Notice, Editor, TFile } from "obsidian";
 import type { Rule, MathContext, AutoMathSettings } from "./types";
 import { DEFAULT_RULES } from "./rules";
 import { DEFAULT_SETTINGS, SMART_LIMIT_OPERATORS } from "./constants";
-import { normalizeText } from "./utils";
+import { normalizeText, parsePolyLongDivCall } from "./utils";
 import { AutoMathSettingsTab } from "./settings";
 
 export default class AutoMathPlugin extends Plugin {
@@ -489,10 +489,10 @@ export default class AutoMathPlugin extends Plugin {
         if (cursor.ch === 0 || lineText[cursor.ch - 1] !== "}") return;
 
         const upto = normalizeText(lineText.slice(0, cursor.ch));
-        const match = /\\polylongdiv\{([^{}]*)\}\{([^{}]*)\}$/.exec(upto);
-        if (!match) return;
+        const parsed = parsePolyLongDivCall(upto);
+        if (!parsed) return;
 
-        const [full, dividend, divisor] = match;
+        const { full, dividend, divisor } = parsed;
         const start = cursor.ch - full.length;
         const before = lineText.slice(0, start);
         const after = lineText.slice(cursor.ch);
@@ -500,6 +500,12 @@ export default class AutoMathPlugin extends Plugin {
         try {
             const { computePolyLongDivisionLatex } = await import("./poly-division");
             const expanded = computePolyLongDivisionLatex(dividend, divisor);
+
+            // The import is async: bail out if the user typed or moved meanwhile.
+            const nowCursor = editor.getCursor();
+            if (nowCursor.line !== cursor.line || nowCursor.ch !== cursor.ch || editor.getLine(cursor.line) !== lineText) {
+                return;
+            }
             this._expandMultiline(editor, cursor, before, after, expanded);
             if (this.settings.debug) {
                 console.debug("[Auto Math] computed polynomial long division", dividend, divisor);
