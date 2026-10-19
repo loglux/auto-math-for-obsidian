@@ -143,6 +143,30 @@ describe("_maybeExpand / smart limits", () => {
     });
 });
 
+describe("typed-input gate", () => {
+    it("accepts a typed character once, shortly after beforeinput", () => {
+        const plugin = createPlugin();
+        plugin._noteInput("insertText", 1000);
+        expect(plugin._takeTypedInput(1100)).toBe(true);
+        expect(plugin._takeTypedInput(1100)).toBe(false);
+    });
+
+    it("rejects Backspace, paste and undo", () => {
+        const plugin = createPlugin();
+        for (const type of ["deleteContentBackward", "insertFromPaste", "historyUndo", "insertFromDrop"]) {
+            plugin._noteInput(type, 1000);
+            expect(plugin._takeTypedInput(1050)).toBe(false);
+        }
+    });
+
+    it("rejects a stale beforeinput and a change with no input event", () => {
+        const plugin = createPlugin();
+        plugin._noteInput("insertText", 1000);
+        expect(plugin._takeTypedInput(2000)).toBe(false);
+        expect(plugin._takeTypedInput(2000)).toBe(false);
+    });
+});
+
 describe("_maybeExpand / expandOnSpace", () => {
     it("does not expand a letter-ending trigger while typing", () => {
         const plugin = createPlugin({ expandOnSpace: true });

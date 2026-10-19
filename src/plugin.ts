@@ -97,10 +97,20 @@ export default class AutoMathPlugin extends Plugin {
             })
         );
 
+        // Remember what kind of input is about to change the document, so that
+        // Backspace, paste, drop and undo do not trigger an expansion.
+        this.registerDomEvent(
+            document,
+            "beforeinput",
+            (e: InputEvent) => this._noteInput(e.inputType),
+            true
+        );
+
         this.registerEvent(
             this.app.workspace.on("editor-change", (editor: Editor) => {
                 if (!this.settings.enabled) return;
                 if (!editor) return;
+                if (!this._takeTypedInput()) return;
                 try {
                     this._maybeExpand(editor);
                 } catch (e) {
@@ -113,6 +123,23 @@ export default class AutoMathPlugin extends Plugin {
         );
 
         this.addSettingTab(new AutoMathSettingsTab(this.app, this));
+    }
+
+    private _lastInput = { type: "", at: 0 };
+
+    /** Record the inputType of a browser beforeinput event (typed text vs delete/paste/undo). */
+    _noteInput(inputType: string, now: number = Date.now()): void {
+        this._lastInput = { type: inputType, at: now };
+    }
+
+    /**
+     * True once per typed character: the last input was typing and happened a
+     * moment ago. Consuming it keeps the plugin's own edit from re-triggering.
+     */
+    _takeTypedInput(now: number = Date.now()): boolean {
+        const { type, at } = this._lastInput;
+        this._lastInput = { type: "", at: 0 };
+        return /^insert(Text|CompositionText)$/.test(type) && now - at < 500;
     }
 
     getFullRulesPath(): string {
