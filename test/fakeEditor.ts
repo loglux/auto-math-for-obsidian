@@ -37,13 +37,15 @@ export class FakeEditor {
         this.cursor = { line: pos.line, ch: pos.ch === Infinity ? lineLen : pos.ch };
     }
 
-    replaceRange(text: string, from: Pos): void {
+    replaceRange(text: string, from: Pos, to?: Pos): void {
         const line = this.lines[from.line] ?? "";
         const ch = from.ch === Infinity ? line.length : from.ch;
         const before = line.slice(0, ch);
-        const after = line.slice(ch);
+        const endLine = this.lines[(to ?? from).line] ?? "";
+        const endCh = to ? (to.ch === Infinity ? endLine.length : to.ch) : ch;
+        const after = endLine.slice(endCh);
         const inserted = (before + text + after).split("\n");
-        this.lines.splice(from.line, 1, ...inserted);
+        this.lines.splice(from.line, (to ?? from).line - from.line + 1, ...inserted);
     }
 
     text(): string {

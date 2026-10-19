@@ -19,16 +19,11 @@ export default class AutoMathPlugin extends Plugin {
         const version = this.manifest?.version ?? "unknown";
         console.debug("[Auto Math] loaded v" + version);
 
-        const rulesPath = this.getFullRulesPath();
-        const exists = await this._rulesFileExists(rulesPath);
-        new Notice(
-            exists
-                ? `Auto Math: external rules found`
-                : `Auto Math: external rules not found`
-        );
-
         await this._loadExternalRules(true);
-        new Notice(`Auto Math: ${this._getRules().length} active rules`);
+        if (this.settings.debug) {
+            const exists = await this._rulesFileExists(this.getFullRulesPath());
+            new Notice(`Auto Math: external rules ${exists ? "found" : "not found"}, ${this._getRules().length} active rules`);
+        }
 
         this.statusEl = this.addStatusBarItem();
         this._renderStatus();
@@ -243,8 +238,9 @@ export default class AutoMathPlugin extends Plugin {
      */
     _mergeRuleLayers(base: Rule[], overlay: Rule[]): Rule[] {
         const byTrigger = new Map<string, Rule>();
-        for (const r of base) byTrigger.set(normalizeText(r.trigger), r);
-        for (const r of overlay) byTrigger.set(normalizeText(r.trigger), r);
+        // Store the normalised trigger so matching does not have to redo it per keystroke
+        for (const r of base) byTrigger.set(normalizeText(r.trigger), { ...r, trigger: normalizeText(r.trigger) });
+        for (const r of overlay) byTrigger.set(normalizeText(r.trigger), { ...r, trigger: normalizeText(r.trigger) });
         return Array.from(byTrigger.values()).sort((a, b) => b.trigger.length - a.trigger.length);
     }
 
@@ -435,7 +431,7 @@ export default class AutoMathPlugin extends Plugin {
         if (!rules.length) return;
 
         for (const rule of rules) {
-            const trig = normalizeText(rule.trigger);
+            const trig = rule.trigger; // already normalised by _mergeRuleLayers
 
             // Skip if the trigger is longer than what we've typed
             if (trig.length > upto.length) continue;
@@ -520,21 +516,25 @@ export default class AutoMathPlugin extends Plugin {
      * Expand a single-line template
      */
     _expandSingleLine(editor: Editor, cursor: { line: number; ch: number }, before: string, after: string, expanded: string) {
-        editor.setLine(cursor.line, before + expanded + after);
+        // Replace only the trigger, not the whole line (keeps other cursors and undo steps intact)
+        const from = { line: cursor.line, ch: before.length };
+        const to = { line: cursor.line, ch: cursor.ch };
 
         // Place the cursor inside the first {} if present
         const idxBraces = expanded.indexOf("{}");
         if (idxBraces >= 0) {
+            editor.replaceRange(expanded, from, to);
             const pos = before.length + expanded.indexOf("{") + 1;
             editor.setCursor({ line: cursor.line, ch: pos });
         } else {
             // Fallback: support '|' marker as cursor position helper
             const pipe = expanded.indexOf("|");
             if (pipe >= 0) {
-                editor.setLine(cursor.line, before + expanded.replace("|", "") + after);
+                editor.replaceRange(expanded.replace("|", ""), from, to);
                 const pos = before.length + pipe;
                 editor.setCursor({ line: cursor.line, ch: pos });
             } else {
+                editor.replaceRange(expanded, from, to);
                 editor.setCursor({
                     line: cursor.line,
                     ch: before.length + expanded.length,
@@ -578,20 +578,13 @@ export default class AutoMathPlugin extends Plugin {
             }
         }
 
-        // Replace current line with first line of expansion
-        editor.setLine(cursorLine, before + lines[0] + (lines.length === 1 ? after : ''));
-
-        // Insert remaining lines
-        if (lines.length > 1) {
-            for (let i = 1; i < lines.length; i++) {
-                const isLastLine = i === lines.length - 1;
-                const content = isLastLine ? lines[i] + after : lines[i];
-                editor.replaceRange(
-                    '\n' + content,
-                    { line: cursorLine + i - 1, ch: Infinity }
-                );
-            }
-        }
+        // Replace only the trigger with the whole expansion in one edit (one undo step);
+        // the text after the cursor stays where it is, after the last inserted line.
+        editor.replaceRange(
+            lines.join('\n'),
+            { line: cursorLine, ch: before.length },
+            { line: cursorLine, ch: cursor.ch }
+        );
 
         // Position cursor
         if (foundCursor) {
