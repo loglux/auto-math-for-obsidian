@@ -58,6 +58,11 @@ export class AutoMathSettingsTab extends PluginSettingTab {
                 render: (setting) => this._configureSmartLimitsToggle(setting),
             },
             {
+                name: "Expand on space",
+                desc: "Expand a trigger when you press space after it, instead of at once. Lets you type longer commands such as \\textbf without \\text expanding first.",
+                render: (setting) => this._configureExpandOnSpaceToggle(setting),
+            },
+            {
                 name: "Maxima converter (beta)",
                 desc: "Adds a \"Copy as Maxima\" item to the editor's right-click menu when text is selected. Experimental - covers common expressions (fractions, roots, trig, integrals, sums, limits); complex or unusual LaTeX may not convert cleanly.",
                 render: (setting) => this._configureMaximaConverterToggle(setting),
@@ -184,6 +189,22 @@ export class AutoMathSettingsTab extends PluginSettingTab {
                     .setValue(this.plugin.settings.smartLimits)
                     .onChange(async (v) => {
                         this.plugin.settings.smartLimits = v;
+                        await this.plugin.saveSettings();
+                    })
+            );
+    }
+
+    private _configureExpandOnSpaceToggle(setting: Setting): void {
+        setting
+            .setName("Expand on space")
+            .setDesc(
+                "Expand a trigger when you press space after it, instead of at once. Lets you type longer commands such as \\textbf without \\text expanding first."
+            )
+            .addToggle((t) =>
+                t
+                    .setValue(this.plugin.settings.expandOnSpace)
+                    .onChange(async (v) => {
+                        this.plugin.settings.expandOnSpace = v;
                         await this.plugin.saveSettings();
                     })
             );

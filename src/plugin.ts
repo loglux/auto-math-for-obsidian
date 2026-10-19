@@ -420,11 +420,19 @@ export default class AutoMathPlugin extends Plugin {
 
         const lastChar = lineText[cursor.ch - 1];
 
+        // With expandOnSpace, a trigger ending in a letter fires only when a space is
+        // typed right after it (the space is consumed), so \textbf is not cut short
+        // by \text. Triggers ending in a symbol (\lim_, ^, }) still fire at once.
+        const deferLetters = this.settings.expandOnSpace;
+        const typedSpace = deferLetters && lastChar === " ";
+        const matchEnd = typedSpace ? cursor.ch - 1 : cursor.ch;
+        if (matchEnd === 0) return;
+
         // Quick check - last character must be part of a trigger
         // Valid trigger endings: letters, backslash, ^, _, }
-        if (!/[a-zA-Z\\^_}]/.test(lastChar)) return;
+        if (!typedSpace && !/[a-zA-Z\\^_}]/.test(lastChar)) return;
 
-        const uptoRaw = lineText.slice(0, cursor.ch);
+        const uptoRaw = lineText.slice(0, matchEnd);
         const upto = normalizeText(uptoRaw);
 
         const rules = this._getRules();
@@ -438,8 +446,10 @@ export default class AutoMathPlugin extends Plugin {
 
             if (!upto.endsWith(trig)) continue;
 
+            if (deferLetters && /[a-zA-Z]$/.test(trig) !== typedSpace) continue;
+
             const delta = uptoRaw.length - upto.length;
-            const start = cursor.ch - trig.length - delta;
+            const start = matchEnd - trig.length - delta;
             const before = lineText.slice(0, start);
             const after = lineText.slice(cursor.ch);
 

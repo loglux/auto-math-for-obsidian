@@ -143,6 +143,44 @@ describe("_maybeExpand / smart limits", () => {
     });
 });
 
+describe("_maybeExpand / expandOnSpace", () => {
+    it("does not expand a letter-ending trigger while typing", () => {
+        const plugin = createPlugin({ expandOnSpace: true });
+        const editor = new FakeEditor("\\text", { line: 0, ch: 5 });
+        plugin._maybeExpand(editor as never);
+        expect(editor.getLine(0)).toBe("\\text");
+    });
+
+    it("leaves a longer command alone when typed through", () => {
+        const plugin = createPlugin({ expandOnSpace: true });
+        const editor = new FakeEditor("\\textbf", { line: 0, ch: 7 });
+        plugin._maybeExpand(editor as never);
+        expect(editor.getLine(0)).toBe("\\textbf");
+    });
+
+    it("expands on space and consumes the space", () => {
+        const plugin = createPlugin({ expandOnSpace: true });
+        const editor = new FakeEditor("a \\frac b", { line: 0, ch: 8 });
+        plugin._maybeExpand(editor as never);
+        expect(editor.getLine(0)).toBe("a \\frac{}{}b");
+        expect(editor.getCursor()).toEqual({ line: 0, ch: 8 });
+    });
+
+    it("still expands a symbol-ending trigger at once", () => {
+        const plugin = createPlugin({ expandOnSpace: true });
+        const editor = new FakeEditor("\\lim_", { line: 0, ch: 5 });
+        plugin._maybeExpand(editor as never);
+        expect(editor.getLine(0)).toBe("\\lim_{}");
+    });
+
+    it("does not expand on space when the option is off", () => {
+        const plugin = createPlugin();
+        const editor = new FakeEditor("\\fr ", { line: 0, ch: 4 });
+        plugin._maybeExpand(editor as never);
+        expect(editor.getLine(0)).toBe("\\fr ");
+    });
+});
+
 describe("_maybeExpand / multiline expansion", () => {
     let plugin: AutoMathPlugin;
 

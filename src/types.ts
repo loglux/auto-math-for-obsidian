@@ -39,6 +39,11 @@ export interface AutoMathSettings {
     rulesPath: string;
     debug: boolean;
     smartLimits: boolean;
+    /**
+     * Triggers ending in a letter expand when a space is typed after them
+     * (the space is consumed) instead of at once. Off by default.
+     */
+    expandOnSpace: boolean;
     maxScanLines: number;
     /**
      * Experimental: adds a "Copy as Maxima" item to the editor context menu
