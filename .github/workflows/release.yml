@@ -1,0 +1,70 @@
+name: Release
+
+# Push a tag equal to the version in manifest.json (for example `git tag -a 0.2.13 -m 0.2.13`
+# and `git push origin 0.2.13`). The workflow checks that the versions agree, runs lint,
+# tests and the production build, attaches a signed build-provenance attestation, and
+# creates a DRAFT release with main.js and manifest.json. The notes come from
+# release-notes/<version>.md (commit that file before tagging); without it they are
+# generated from the commits. Review the draft and publish it.
+
+on:
+  push:
+    tags:
+      - "[0-9]+.[0-9]+.[0-9]+"
+
+permissions:
+  contents: write
+  id-token: write
+  attestations: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      - name: Check that the tag matches the project versions
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          node -e '
+            const tag = process.env.TAG;
+            const manifest = require("./manifest.json").version;
+            const pkg = require("./package.json").version;
+            const known = Object.keys(require("./versions.json"));
+            const problems = [];
+            if (manifest !== tag) problems.push(`manifest.json is ${manifest}`);
+            if (pkg !== tag) problems.push(`package.json is ${pkg}`);
+            if (!known.includes(tag)) problems.push("versions.json has no entry for the tag");
+            if (problems.length) {
+              console.error(`Tag ${tag} does not match: ` + problems.join("; "));
+              process.exit(1);
+            }
+          '
+
+      - run: npm run check
+
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: |
+            main.js
+            manifest.json
+
+      - name: Create draft release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          if [ -f "release-notes/$TAG.md" ]; then
+            gh release create "$TAG" main.js manifest.json --draft --title "$TAG" --notes-file "release-notes/$TAG.md"
+          else
+            gh release create "$TAG" main.js manifest.json --draft --title "$TAG" --generate-notes
+          fi

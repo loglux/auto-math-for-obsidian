@@ -12,9 +12,7 @@ help:
 	@echo "make check | make install [VAULT=path] | make qa"
 
 check:
-	npm run lint
-	npm test
-	npm run build
+	npm run check
 
 install:
 	npm run build
