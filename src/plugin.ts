@@ -1,4 +1,5 @@
 import { Plugin, Notice, Editor, TFile } from "obsidian";
+import type { EventRef } from "obsidian";
 import type { Rule, MathContext, AutoMathSettings } from "./types";
 import { DEFAULT_RULES } from "./rules";
 import { DEFAULT_SETTINGS, SMART_LIMIT_OPERATORS } from "./constants";
@@ -126,6 +127,7 @@ export default class AutoMathPlugin extends Plugin {
     }
 
     private _lastInput = { type: "", at: 0 };
+    private _lastRulesLoadAt = 0;
 
     /** Record the inputType of a browser beforeinput event (typed text vs delete/paste/undo). */
     _noteInput(inputType: string, now: number = Date.now()): void {
@@ -253,6 +255,7 @@ export default class AutoMathPlugin extends Plugin {
         this._overlayRules = overlay;
         this._rules = this._mergeRuleLayers(DEFAULT_RULES, overlay);
 
+        this._lastRulesLoadAt = Date.now();
         if (this.settings.debug) console.debug("[Auto Math] active rules", this._rules);
         return !!this._rules.length;
     }
@@ -341,20 +344,29 @@ export default class AutoMathPlugin extends Plugin {
     }
 
     _registerRulesWatcher() {
-        const onChange = async (file: TFile) => {
+        const onPathChange = async (path: string | undefined) => {
             const currentPath = this.getFullRulesPath();
-            if (file && file.path === currentPath) {
-                if (this.settings.debug) {
-                    console.debug("[Auto Math] detected change in rules file:", currentPath);
-                }
-                await this._loadExternalRules(true);
-                new Notice(`Auto Math: reloaded (${this._getRules().length})`);
+            if (path !== currentPath) return;
+            // Our own load just ran (e.g. after we wrote the file): nothing new to pick up.
+            if (Date.now() - this._lastRulesLoadAt < 500) return;
+            if (this.settings.debug) {
+                console.debug("[Auto Math] detected change in rules file:", currentPath);
             }
+            await this._loadExternalRules(true);
+            new Notice(`Auto Math: reloaded (${this._getRules().length})`);
         };
+        const onFile = (file: TFile) => onPathChange(file?.path);
 
-        this.registerEvent(this.app.vault.on("modify", onChange));
-        this.registerEvent(this.app.vault.on("create", onChange));
-        this.registerEvent(this.app.vault.on("delete", onChange));
+        this.registerEvent(this.app.vault.on("modify", onFile));
+        this.registerEvent(this.app.vault.on("create", onFile));
+        this.registerEvent(this.app.vault.on("delete", onFile));
+        // rules.json lives in the hidden .obsidian folder, which the vault does not index:
+        // there Obsidian reports changes only through the raw event.
+        // The event is missing from the public typings, so it is typed here.
+        const vaultWithRaw = this.app.vault as unknown as {
+            on(name: "raw", callback: (path: string) => unknown): EventRef;
+        };
+        this.registerEvent(vaultWithRaw.on("raw", (path) => onPathChange(path)));
     }
 
     _getRules(): Rule[] {
