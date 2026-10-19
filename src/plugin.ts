@@ -100,12 +100,18 @@ export default class AutoMathPlugin extends Plugin {
 
         // Remember what kind of input is about to change the document, so that
         // Backspace, paste, drop and undo do not trigger an expansion.
-        this.registerDomEvent(
-            document,
-            "beforeinput",
-            (e: InputEvent) => this._noteInput(e.inputType),
-            true
-        );
+        // Every window has its own document (popout windows too), so listen in each.
+        const listened = new WeakSet<Document>();
+        const listenTo = (doc: Document) => {
+            if (listened.has(doc)) return;
+            listened.add(doc);
+            this.registerDomEvent(doc, "beforeinput", (e: InputEvent) => this._noteInput(e.inputType), true);
+        };
+        listenTo(document);
+        this.registerEvent(this.app.workspace.on("window-open", (_win, win) => listenTo(win.document)));
+        this.app.workspace.onLayoutReady(() => {
+            this.app.workspace.iterateAllLeaves((leaf) => listenTo(leaf.view.containerEl.ownerDocument));
+        });
 
         this.registerEvent(
             this.app.workspace.on("editor-change", (editor: Editor) => {

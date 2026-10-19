@@ -15,6 +15,8 @@ It's like a mini _LaTeX auto-completion engine_ — lightweight, fast, and entir
     - `$…$` → compact form (`\int_{}^{}`)
     - `$$…$$` → display form with limits (`\int\limits_{}^{}`)
 
+- 🔹 **Expand on space** – optional: expand a trigger on space, so longer commands like `\textbf` can be typed (disabled by default).
+
 - 🔹 **Multiline templates** – environments like `\align` expand across multiple lines with proper formatting.
 
 - 🔹 **Custom rule file** – your additions and overrides live in `.obsidian/plugins/auto-math/rules.json` (user-editable), layered on top of the built-in pack — you only need to list what you've changed, not the whole pack.
@@ -162,6 +164,8 @@ Open **Settings → Auto Math** to customise:
 - **Rules file path** – defaults to `.obsidian/plugins/auto-math/rules.json`.
 
 - **Smart Limits** – context‑aware expansions for ∫ (disabled by default, enable in settings if needed).
+
+- **Expand on space** – a trigger ending in a letter expands when you press space after it (the space is consumed), instead of at once. This lets you type longer commands such as `\textbf` without `\text` expanding first. Triggers ending in a symbol, like `\lim_`, still expand immediately. Disabled by default.
 
 - **Reload / Create / Open** – reload or open your external rules file.
 
